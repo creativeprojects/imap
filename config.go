@@ -7,14 +7,23 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type AccountType string
+
+const (
+	IMAP    AccountType = "imap"
+	MAILDIR AccountType = "maildir"
+)
+
 type Config struct {
 	Accounts map[string]Account `yaml:"accounts"`
 }
 
 type Account struct {
-	ServerURL string `yaml:"serverURL"`
-	Username  string `yaml:"username"`
-	Password  string `yaml:"password"`
+	Type      AccountType `yaml:"type"`
+	ServerURL string      `yaml:"serverURL"`
+	Username  string      `yaml:"username"`
+	Password  string      `yaml:"password"`
+	Root      string      `yaml:"root"`
 }
 
 func newConfig() *Config {
