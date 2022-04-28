@@ -29,8 +29,30 @@ func main() {
 		// 	}
 		// }
 		if account.Type == MAILDIR {
-			box := maildir.Dir(filepath.Join(wd, account.Root))
-			err := box.Init()
+			dir := filepath.Join(wd, account.Root, "testbox")
+			err := os.MkdirAll(dir, 0755)
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			box := maildir.Dir(dir)
+			err = box.Init()
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			key, w, err := box.Create([]maildir.Flag{maildir.FlagSeen})
+			if err != nil {
+				log.Print(err)
+				continue
+			}
+			log.Printf("new message key = %s", key)
+			w.Write([]byte("From: toto\nTo: toto\nSubject: message\n\nCoucou!\n"))
+			err = w.Close()
+			if err != nil {
+				log.Print(err)
+			}
+			err = box.SetInfo(key, "UID")
 			if err != nil {
 				log.Print(err)
 			}
