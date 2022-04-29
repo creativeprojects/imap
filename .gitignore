@@ -1,2 +1,3 @@
 /imap.yaml
 /maildir*
+/.cache
