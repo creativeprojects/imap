@@ -1,4 +1,4 @@
-package main
+package cfg
 
 import (
 	"io"
@@ -12,6 +12,7 @@ type AccountType string
 const (
 	IMAP    AccountType = "imap"
 	MAILDIR AccountType = "maildir"
+	LOCAL   AccountType = "local"
 )
 
 type Config struct {
@@ -24,14 +25,15 @@ type Account struct {
 	Username  string      `yaml:"username"`
 	Password  string      `yaml:"password"`
 	Root      string      `yaml:"root"`
+	File      string      `yaml:"file"`
 }
 
 func newConfig() *Config {
 	return &Config{}
 }
 
-// LoadFileConfig loads the configuration from the file
-func LoadFileConfig(fileName string) (*Config, error) {
+// LoadFromFile loads the configuration from the file
+func LoadFromFile(fileName string) (*Config, error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, err

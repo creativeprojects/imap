@@ -6,26 +6,40 @@ import (
 	"path/filepath"
 
 	"github.com/creativeprojects/clog"
+	"github.com/creativeprojects/imap/cfg"
+	"github.com/creativeprojects/imap/cmd"
 	"github.com/creativeprojects/imap/store"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 )
 
+// These fields are populated by the goreleaser build
+var (
+	buildVersion = "0.1.0-dev"
+	buildCommit  = ""
+	buildDate    = ""
+	buildBy      = ""
+)
+
 func main() {
+	cmd.Execute()
+}
+
+func exmain() {
 	log := clog.NewFilteredConsoleLogger(clog.LevelDebug)
 	wd, err := os.Getwd()
 	if err == nil {
 		wd = "./"
 	}
 
-	cfg, err := LoadFileConfig("imap.yaml")
+	config, err := cfg.LoadFromFile("imap.yaml")
 	if err != nil {
 		log.Errorf("cannot open or read configuration file: %w", err)
 		os.Exit(1)
 	}
 
-	for _, account := range cfg.Accounts {
-		if account.Type == IMAP {
+	for _, account := range config.Accounts {
+		if account.Type == cfg.IMAP {
 			// server, err := remote.NewImap(remote.Config{
 			// 	Logger:    *log,
 			// 	ServerURL: account.ServerURL,
@@ -60,9 +74,13 @@ func main() {
 			// 	}
 			// }
 			log.Debugf("Mailboxes in account %q:", account.Username)
-			db := store.NewBoltStore(filepath.Join(wd, ".cache", account.Username))
+			db, err := store.NewBoltStore(filepath.Join(wd, ".cache", account.Username))
+			if err != nil {
+				log.Error(err)
+				break
+			}
 			defer db.Close()
-			list, err := db.List()
+			list, err := db.ListMailbox()
 			if err != nil {
 				log.Error(err)
 				break

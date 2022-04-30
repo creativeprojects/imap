@@ -1,7 +1,7 @@
 package store
 
 import (
-	"io/fs"
+	"fmt"
 	"os"
 	"time"
 
@@ -18,19 +18,23 @@ const (
 )
 
 type BoltStore struct {
-	dbFile         string
-	dbFileMode     fs.FileMode
-	defaultOptions *bolt.Options
+	dbFile string
+	db     *bolt.DB
 }
 
-func NewBoltStore(filename string) *BoltStore {
+func NewBoltStore(filename string) (*BoltStore, error) {
 	options := bolt.DefaultOptions
 	options.Timeout = 10 * time.Second
-	return &BoltStore{
-		dbFile:         filename,
-		dbFileMode:     0644,
-		defaultOptions: options,
+
+	db, err := bolt.Open(filename, 0600, options)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %q: %q", filename, err)
 	}
+
+	return &BoltStore{
+		dbFile: filename,
+		db:     db,
+	}, nil
 }
 
 func (s *BoltStore) Exists() bool {
@@ -39,13 +43,7 @@ func (s *BoltStore) Exists() bool {
 }
 
 func (s *BoltStore) Init() error {
-	db, err := bolt.Open(s.dbFile, s.dbFileMode, s.defaultOptions)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	err = db.Update(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists([]byte(metadataBucket))
 		if err != nil {
 			return err
@@ -62,19 +60,13 @@ func (s *BoltStore) Init() error {
 	return nil
 }
 
-func (s *BoltStore) Close() {
-	//
+func (s *BoltStore) Close() error {
+	return s.db.Close()
 }
 
 func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
-	db, err := bolt.Open(s.dbFile, s.dbFileMode, s.defaultOptions)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
 	// Start the transaction.
-	tx, err := db.Begin(true)
+	tx, err := s.db.Begin(true)
 	if err != nil {
 		return err
 	}
@@ -108,15 +100,9 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	return nil
 }
 
-func (s *BoltStore) List() ([]mailbox.Info, error) {
-	db, err := bolt.Open(s.dbFile, s.dbFileMode, s.defaultOptions)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
+func (s *BoltStore) ListMailbox() ([]mailbox.Info, error) {
 	list := make([]mailbox.Info, 0)
-	err = db.View(func(tx *bolt.Tx) error {
+	err := s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(mailboxBucket))
 		if bucket == nil {
 			return nil
@@ -149,13 +135,7 @@ func (s *BoltStore) List() ([]mailbox.Info, error) {
 }
 
 func (s *BoltStore) Backup(filename string) error {
-	db, err := bolt.Open(s.dbFile, s.dbFileMode, s.defaultOptions)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-
-	err = db.View(func(tx *bolt.Tx) error {
+	err := s.db.View(func(tx *bolt.Tx) error {
 		return tx.CopyFile(filename, 0644)
 	})
 	if err != nil {

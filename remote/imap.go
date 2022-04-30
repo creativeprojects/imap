@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/creativeprojects/clog"
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
@@ -46,11 +47,11 @@ func NewImap(cfg Config) (*Imap, error) {
 	}, nil
 }
 
-func (i *Imap) Close() {
-	_ = i.client.Logout()
+func (i *Imap) Close() error {
+	return i.client.Logout()
 }
 
-func (i *Imap) List() ([]mailbox.Info, error) {
+func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 	mailboxes := make(chan *imap.MailboxInfo, 10)
 	done := make(chan error, 1)
 	go func() {
@@ -72,4 +73,26 @@ func (i *Imap) List() ([]mailbox.Info, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func (i *Imap) CreateMailbox(info mailbox.Info) error {
+	name := info.Name
+	// Let's load the list of existing mailboxes,
+	// which will also give us the delimiter used by the server
+	mailboxes, err := i.ListMailbox()
+	if err != nil {
+		return err
+	}
+	if len(mailboxes) > 0 {
+		for _, mailbox := range mailboxes {
+			if mailbox.Name == name {
+				// already existing
+				return nil
+			}
+		}
+		expectedDelimiter := mailboxes[0].Delimiter
+		name = lib.VerifyDelimiter(name, info.Delimiter, expectedDelimiter)
+	}
+
+	return i.client.Create(name)
 }
