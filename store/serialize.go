@@ -57,7 +57,7 @@ func SerializeUID(prefix string, uid uint32) []byte {
 }
 
 func DeserializeUID(prefix string, key []byte) uint32 {
-	key = bytes.TrimLeft(key, prefix)
+	key = bytes.TrimPrefix(key, []byte(prefix))
 	uid, _ := strconv.ParseUint(string(key), 10, 32)
 	return uint32(uid)
 }

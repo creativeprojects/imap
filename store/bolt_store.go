@@ -244,7 +244,50 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 	})
 }
 
-func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
+func (s *BoltStore) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		var err error
+
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		mailboxBucket := bucket.Bucket([]byte(name))
+		if mailboxBucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+
+		var count uint32
+		err = mailboxBucket.ForEach(func(key, value []byte) error {
+			if bytes.HasPrefix(key, []byte(bodyPrefix)) {
+				count++
+				flags := &([]string{})
+				flagsKey := bytes.Replace(key, []byte(bodyPrefix), []byte(flagsPrefix), 1)
+				flagsData := mailboxBucket.Get(flagsKey)
+				if flagsData != nil {
+					flags, err = DeserializeObject[[]string](flagsData)
+					if err != nil {
+						return err
+					}
+				}
+				messages <- &mailbox.Message{
+					SeqNum: count,
+					Uid:    DeserializeUID(bodyPrefix, key),
+					Flags:  *flags,
+					Size:   uint32(len(value)),
+					Body:   io.NopCloser(bytes.NewReader(value)),
+				}
+			}
+			return nil
+		})
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	close(messages)
 	return nil
 }
 

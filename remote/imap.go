@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -163,7 +164,7 @@ func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, bod
 	return nil
 }
 
-func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
+func (i *Imap) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
 	seqset := new(imap.SeqSet)
 	seqset.AddRange(0, i.selected.Messages)
 
@@ -171,13 +172,17 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid}
 
 	receiver := make(chan *imap.Message, 10)
-	// done := make(chan error, 1)
-	// go func() {
-	// 	done <- i.client.Fetch(seqset, items, receiver)
-	// }()
-
+	done := make(chan error, 1)
 	go func() {
+		done <- i.client.Fetch(seqset, items, receiver)
+	}()
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
 		for msg := range receiver {
+			i.log.Printf("Received message seq=%d", msg.SeqNum)
 			// receive all the messages as they get in
 			message := &mailbox.Message{
 				SeqNum:       msg.SeqNum,
@@ -185,17 +190,22 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 				InternalDate: msg.InternalDate,
 				Size:         msg.Size,
 				Uid:          msg.Uid,
-				Body:         msg.GetBody(section),
+				Body:         io.NopCloser(msg.GetBody(section)),
 			}
 			// and transfer them to the output
 			messages <- message
 		}
-		close(messages)
 	}()
 	// will return the error from Fetch when it's finished
-	// err := <-done
-	// send a nil message to signal it's the end
-	// messages <- nil
-	err := i.client.Fetch(seqset, items, receiver)
+	err := <-done
+	wg.Wait()
+	close(messages)
+	i.log.Print("All messages received")
+	_ = i.Unselect()
 	return err
+}
+
+func (i *Imap) Unselect() error {
+	i.selected = nil
+	return i.client.Unselect()
 }

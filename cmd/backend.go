@@ -22,7 +22,7 @@ type Backend interface {
 	DeleteMailbox(info mailbox.Info) error
 	SelectMailbox(info mailbox.Info) (*mailbox.Status, error)
 	PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error
-	FetchMessages(messages chan *mailbox.Message) error
+	FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error
 }
 
 // verify interface

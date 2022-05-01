@@ -17,5 +17,5 @@ type Message struct {
 	// The message unique identifier. It must be greater than or equal to 1.
 	Uid uint32
 	// The message body.
-	Body io.Reader
+	Body io.ReadCloser
 }

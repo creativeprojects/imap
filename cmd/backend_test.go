@@ -74,27 +74,27 @@ func TestImapBackend(t *testing.T) {
 	wg.Wait()
 }
 
-// func TestMaildirBackend(t *testing.T) {
-// 	root := t.TempDir()
-// 	backend, err := mdir.New(root)
-// 	require.NoError(t, err)
+func TestMaildirBackend(t *testing.T) {
+	root := t.TempDir()
+	backend, err := mdir.New(root)
+	require.NoError(t, err)
 
-// 	err = prepareMaildirBackend(backend)
-// 	require.NoError(t, err)
+	err = prepareMaildirBackend(t, backend)
+	require.NoError(t, err)
 
-// 	runTestBackend(t, backend)
-// }
+	runTestBackend(t, backend)
+}
 
-// func TestStoreBackend(t *testing.T) {
-// 	dir := t.TempDir()
-// 	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
-// 	require.NoError(t, err)
+func TestStoreBackend(t *testing.T) {
+	dir := t.TempDir()
+	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
+	require.NoError(t, err)
 
-// 	err = prepareLocalBackend(backend)
-// 	require.NoError(t, err)
+	err = prepareLocalBackend(t, backend)
+	require.NoError(t, err)
 
-// 	runTestBackend(t, backend)
-// }
+	runTestBackend(t, backend)
+}
 
 func TestBackendFromConfig(t *testing.T) {
 	wd, err := os.Getwd()
@@ -214,18 +214,28 @@ func runTestBackend(t *testing.T, backend Backend) {
 	})
 
 	t.Run("FetchOneMessage", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
 		receiver := make(chan *mailbox.Message, 10)
 		done := make(chan error, 1)
 		go func() {
-			done <- backend.FetchMessages(receiver)
+			done <- backend.FetchMessages(info, receiver)
 		}()
 
+		count := 0
 		for msg := range receiver {
-			if msg == nil {
-				break
-			}
-			t.Logf("Received message seq=%d uid=%d size=%d flags=%+v", msg.SeqNum, msg.Uid, msg.Size, msg.Flags)
+			count++
+			assert.NotNil(t, msg)
+			buffer := &bytes.Buffer{}
+			read, err := buffer.ReadFrom(msg.Body)
+			assert.NoError(t, err)
+			msg.Body.Close()
+			assert.Equal(t, int64(len(sampleMessage)), read)
+			t.Logf("Received message seq=%d uid=%d size=%d flags=%+v", msg.SeqNum, msg.Uid, read, msg.Flags)
 		}
+		assert.Equal(t, 1, count)
 
 		// wait until all the messages arrived
 		err := <-done

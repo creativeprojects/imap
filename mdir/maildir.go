@@ -125,7 +125,41 @@ func (m *Maildir) PutMessage(info mailbox.Info, flags []string, date time.Time, 
 	return nil
 }
 
-func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
+func (m *Maildir) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+	mbox := maildir.Dir(filepath.Join(m.root, name))
+	keys, err := mbox.Keys()
+	if err != nil {
+		return err
+	}
+	var count uint32
+	for _, key := range keys {
+		count++
+		flags, err := mbox.Flags(key)
+		if err != nil {
+			return err
+		}
+		filename, err := mbox.Filename(key)
+		if err != nil {
+			return err
+		}
+		info, err := os.Stat(filename)
+		if err != nil {
+			return err
+		}
+		file, err := mbox.Open(key)
+		if err != nil {
+			return err
+		}
+		messages <- &mailbox.Message{
+			SeqNum:       count,
+			Flags:        flagsToStrings(flags),
+			InternalDate: info.ModTime(),
+			Body:         file,
+			Size:         uint32(info.Size()),
+		}
+	}
+	close(messages)
 	return nil
 }
 

@@ -27,3 +27,26 @@ func toFlags(source []string) []maildir.Flag {
 	}
 	return flags
 }
+
+func flagsToStrings(source []maildir.Flag) []string {
+	flags := make([]string, 0, len(source))
+	for _, sourceFlag := range source {
+		switch sourceFlag {
+		case maildir.FlagSeen:
+			flags = append(flags, imap.SeenFlag)
+
+		case maildir.FlagReplied:
+			flags = append(flags, imap.AnsweredFlag)
+
+		case maildir.FlagFlagged:
+			flags = append(flags, imap.FlaggedFlag)
+
+		case maildir.FlagTrashed:
+			flags = append(flags, imap.DeletedFlag)
+
+		case maildir.FlagDraft:
+			flags = append(flags, imap.DraftFlag)
+		}
+	}
+	return flags
+}
