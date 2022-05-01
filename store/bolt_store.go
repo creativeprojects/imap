@@ -1,8 +1,11 @@
 package store
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -14,6 +17,7 @@ const (
 	metadataBucket  = "metadata"
 	mailboxBucket   = "mailbox"
 	infoKey         = "info"
+	statusKey       = "status"
 	versionKey      = "version"
 	boltFileVersion = 1
 )
@@ -21,20 +25,27 @@ const (
 type BoltStore struct {
 	dbFile string
 	db     *bolt.DB
+	log    lib.Logger
 }
 
 func NewBoltStore(filename string) (*BoltStore, error) {
 	options := bolt.DefaultOptions
 	options.Timeout = 10 * time.Second
 
+	err := os.MkdirAll(filepath.Dir(filename), 0700)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open %q: %w", filename, err)
+	}
+
 	db, err := bolt.Open(filename, 0600, options)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %q", filename, err)
+		return nil, err
 	}
 
 	return &BoltStore{
 		dbFile: filename,
 		db:     db,
+		log:    &lib.NoLog{},
 	}, nil
 }
 
@@ -69,6 +80,10 @@ func (s *BoltStore) Close() error {
 	return s.db.Close()
 }
 
+func (m *BoltStore) DebugLogger(logger lib.Logger) {
+	m.log = logger
+}
+
 func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	// Start the transaction.
 	tx, err := s.db.Begin(true)
@@ -85,17 +100,28 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 
 	info = mailbox.ChangeDelimiter(info, s.Delimiter())
 
-	bucket, err := root.CreateBucketIfNotExists([]byte(info.Name))
+	bucket, err := root.CreateBucket([]byte(info.Name))
+	if err != nil {
+		if errors.Is(err, bolt.ErrBucketExists) {
+			// don't return an error when the bucket exists
+			return nil
+		}
+		return err
+	}
+
+	err = setMailboxInfo(bucket, info)
 	if err != nil {
 		return err
 	}
 
-	data, err := SerializeObject(&info)
-	if err != nil {
-		return err
+	// default status on empty mailbox
+	status := mailbox.Status{
+		Name:           info.Name,
+		PermanentFlags: []string{"\\*"},
+		UidNext:        1,
+		UidValidity:    1,
 	}
-
-	err = bucket.Put([]byte(infoKey), data)
+	err = setMailboxStatus(bucket, status)
 	if err != nil {
 		return err
 	}
@@ -115,6 +141,7 @@ func (s *BoltStore) ListMailbox() ([]mailbox.Info, error) {
 			return nil
 		}
 		err := bucket.ForEach(func(k, v []byte) error {
+			// if there's a value it's not a bucket
 			if v != nil {
 				return nil
 			}
@@ -122,11 +149,7 @@ func (s *BoltStore) ListMailbox() ([]mailbox.Info, error) {
 			if entry == nil {
 				return nil
 			}
-			data := entry.Get([]byte(infoKey))
-			if data == nil {
-				return nil
-			}
-			info, err := DeserializeObject[mailbox.Info](data)
+			info, err := getMailboxInfo(entry)
 			if err != nil {
 				return err
 			}
@@ -153,6 +176,53 @@ func (s *BoltStore) DeleteMailbox(info mailbox.Info) error {
 	})
 }
 
+func (s *BoltStore) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
+	var status *mailbox.Status
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		var err error
+
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		mailboxBucket := bucket.Bucket([]byte(name))
+		if mailboxBucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		status, err = getMailboxStatus(mailboxBucket)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return status, nil
+}
+
+func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+		mbox := bucket.Bucket([]byte(name))
+		if mbox == nil {
+			return lib.ErrMailboxNotFound
+		}
+		status, err := getMailboxStatus(mbox)
+		if err != nil {
+			return err
+		}
+		status.Messages++
+		return setMailboxStatus(mbox, *status)
+	})
+}
+
 func (s *BoltStore) Backup(filename string) error {
 	err := s.db.View(func(tx *bolt.Tx) error {
 		return tx.CopyFile(filename, 0644)
@@ -161,4 +231,56 @@ func (s *BoltStore) Backup(filename string) error {
 		return err
 	}
 	return nil
+}
+
+func setMailboxInfo(bucket *bolt.Bucket, info mailbox.Info) error {
+	data, err := SerializeObject(&info)
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Put([]byte(infoKey), data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getMailboxInfo(bucket *bolt.Bucket) (*mailbox.Info, error) {
+	data := bucket.Get([]byte(infoKey))
+	if data == nil {
+		return nil, lib.ErrInfoNotFound
+	}
+	info, err := DeserializeObject[mailbox.Info](data)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func setMailboxStatus(bucket *bolt.Bucket, status mailbox.Status) error {
+	data, err := SerializeObject(&status)
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Put([]byte(statusKey), data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getMailboxStatus(bucket *bolt.Bucket) (*mailbox.Status, error) {
+	data := bucket.Get([]byte(statusKey))
+	if data == nil {
+		return nil, lib.ErrStatusNotFound
+	}
+	info, err := DeserializeObject[mailbox.Status](data)
+	if err != nil {
+		return nil, err
+	}
+	return info, nil
 }

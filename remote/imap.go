@@ -1,8 +1,11 @@
 package remote
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"time"
 
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
@@ -14,20 +17,20 @@ type Config struct {
 	ServerURL   string
 	Username    string
 	Password    string
-	DebugLogger Logger
+	DebugLogger lib.Logger
 	NoTLS       bool
 }
 
 type Imap struct {
 	client    *client.Client
-	log       Logger
+	log       lib.Logger
 	delimiter string
 }
 
 func NewImap(cfg Config) (*Imap, error) {
 	log := cfg.DebugLogger
 	if log == nil {
-		log = &noLog{}
+		log = &lib.NoLog{}
 	}
 	if cfg.ServerURL == "" || cfg.Username == "" || cfg.Password == "" {
 		return nil, errors.New("missing information from Config object")
@@ -126,6 +129,34 @@ func (i *Imap) DeleteMailbox(info mailbox.Info) error {
 func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
 	i.log.Printf("Selecting mailbox %q using delimiter %q", name, i.Delimiter())
-	i.client.Select(name, false)
-	return nil, nil
+	status, err := i.client.Select(name, false)
+	if err != nil {
+		return nil, err
+	}
+	return &mailbox.Status{
+		Name:           status.Name,
+		Flags:          status.Flags,
+		PermanentFlags: status.PermanentFlags,
+		Messages:       status.Messages,
+		Recent:         status.Recent,
+		Unseen:         status.Unseen,
+		UnseenSeqNum:   status.UnseenSeqNum,
+		UidNext:        status.UidNext,
+		UidValidity:    status.UidValidity,
+	}, nil
+}
+
+func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
+	buffer := &bytes.Buffer{}
+	read, err := buffer.ReadFrom(body)
+	if err != nil {
+		return fmt.Errorf("cannot read message body: %w", err)
+	}
+	i.log.Printf("Message body: read %d bytes", read)
+	err = i.client.Append(name, flags, date, buffer)
+	if err != nil {
+		return fmt.Errorf("cannot append new message to IMAP server: %w", err)
+	}
+	return nil
 }

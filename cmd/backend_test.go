@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,6 +19,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/nettest"
+)
+
+const (
+	sampleMessage = "From: contact@example.org\r\n" +
+		"To: contact@example.org\r\n" +
+		"Subject: A little message, just for you\r\n" +
+		"Date: Wed, 11 May 2016 14:31:59 +0000\r\n" +
+		"Message-ID: <0000000@localhost/>\r\n" +
+		"Content-Type: text/plain\r\n" +
+		"\r\n" +
+		"Hi there :)"
 )
 
 func TestImapBackend(t *testing.T) {
@@ -62,27 +74,27 @@ func TestImapBackend(t *testing.T) {
 	wg.Wait()
 }
 
-func TestMaildirBackend(t *testing.T) {
-	root := t.TempDir()
-	backend, err := mdir.New(root)
-	require.NoError(t, err)
+// func TestMaildirBackend(t *testing.T) {
+// 	root := t.TempDir()
+// 	backend, err := mdir.New(root)
+// 	require.NoError(t, err)
 
-	err = prepareMaildirBackend(backend)
-	require.NoError(t, err)
+// 	err = prepareMaildirBackend(backend)
+// 	require.NoError(t, err)
 
-	runTestBackend(t, backend)
-}
+// 	runTestBackend(t, backend)
+// }
 
-func TestStoreBackend(t *testing.T) {
-	dir := t.TempDir()
-	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
-	require.NoError(t, err)
+// func TestStoreBackend(t *testing.T) {
+// 	dir := t.TempDir()
+// 	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
+// 	require.NoError(t, err)
 
-	err = prepareLocalBackend(backend)
-	require.NoError(t, err)
+// 	err = prepareLocalBackend(backend)
+// 	require.NoError(t, err)
 
-	runTestBackend(t, backend)
-}
+// 	runTestBackend(t, backend)
+// }
 
 func TestBackendFromConfig(t *testing.T) {
 	wd, err := os.Getwd()
@@ -96,17 +108,41 @@ func TestBackendFromConfig(t *testing.T) {
 	}
 
 	for name, account := range config.Accounts {
-		backend, err := NewBackend(account)
-		require.NoError(t, err)
+		switch account.Type {
+		case cfg.LOCAL:
+			backend, err := store.NewBoltStore(account.File)
+			require.NoError(t, err)
+			err = prepareLocalBackend(t, backend)
+			require.NoError(t, err)
 
-		// switch account.Type{
-		// case cfg.LOCAL:
-		// 	err:=prepareLocalBackend(backend)
-		// }
+			t.Run(name, func(t *testing.T) {
+				runTestBackend(t, backend)
+			})
 
-		t.Run(name, func(t *testing.T) {
-			runTestBackend(t, backend)
-		})
+		case cfg.MAILDIR:
+			backend, err := mdir.New(account.Root)
+			require.NoError(t, err)
+			err = prepareMaildirBackend(t, backend)
+			require.NoError(t, err)
+
+			t.Run(name, func(t *testing.T) {
+				runTestBackend(t, backend)
+			})
+
+		case cfg.IMAP:
+			backend, err := remote.NewImap(remote.Config{
+				ServerURL: account.ServerURL,
+				Username:  account.Username,
+				Password:  account.Password,
+			})
+			require.NoError(t, err)
+
+			t.Run(name, func(t *testing.T) {
+				runTestBackend(t, backend)
+			})
+		default:
+			t.Errorf("unexpected account type %q", account.Type)
+		}
 	}
 }
 
@@ -120,20 +156,6 @@ func runTestBackend(t *testing.T, backend Backend) {
 		require.Len(t, list, 1)
 		assert.Equal(t, "INBOX", list[0].Name)
 		assert.Equal(t, backend.Delimiter(), list[0].Delimiter)
-	})
-
-	t.Run("CreateSimpleMailbox", func(t *testing.T) {
-		createMailbox(t, backend, mailbox.Info{
-			Delimiter: backend.Delimiter(),
-			Name:      "Work",
-		})
-	})
-
-	t.Run("DeleteSimpleMailbox", func(t *testing.T) {
-		deleteMailbox(t, backend, mailbox.Info{
-			Delimiter: backend.Delimiter(),
-			Name:      "Work",
-		})
 	})
 
 	t.Run("CreateDeleteMailboxSameDelimiter", func(t *testing.T) {
@@ -153,35 +175,87 @@ func runTestBackend(t *testing.T, backend Backend) {
 		createMailbox(t, backend, info)
 		deleteMailbox(t, backend, info)
 	})
-}
 
-func prepareMaildirBackend(backend *mdir.Maildir) error {
-	err := backend.CreateMailbox(mailbox.Info{
-		Delimiter: backend.Delimiter(),
-		Name:      "INBOX",
+	t.Run("SelectMailbox", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "INBOX",
+		}
+		status, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+		t.Logf("%v", status)
+		assert.Equal(t, info.Name, status.Name)
+		assert.Equal(t, uint32(1), status.Messages)
 	})
-	if err != nil {
-		return err
-	}
 
-	// adds a random file at the root of maildir
-	file, err := os.Create(filepath.Join(backend.Root(), "info.json"))
-	if err != nil {
-		return err
-	}
-	file.Close()
-	return nil
+	t.Run("CreateSimpleMailbox", func(t *testing.T) {
+		createMailbox(t, backend, mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		})
+	})
+
+	t.Run("AppendMessage", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		body := bytes.NewBufferString(sampleMessage)
+		err := backend.PutMessage(info, []string{"\\Seen"}, time.Now(), body)
+		require.NoError(t, err)
+
+		// Verify the mailbox shows 1 message
+		status, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+		t.Logf("%v", status)
+		assert.Equal(t, info.Name, status.Name)
+		assert.Equal(t, uint32(1), status.Messages)
+		assert.Equal(t, uint32(0), status.Unseen)
+	})
+
+	t.Run("DeleteSimpleMailbox", func(t *testing.T) {
+		deleteMailbox(t, backend, mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		})
+	})
 }
 
-func prepareLocalBackend(backend *store.BoltStore) error {
+func prepareMaildirBackend(t *testing.T, backend *mdir.Maildir) error {
+	t.Helper()
+	backend.DebugLogger(&testLogger{t})
+	return prepareBackend(backend)
+}
+
+func prepareLocalBackend(t *testing.T, backend *store.BoltStore) error {
+	t.Helper()
+	backend.DebugLogger(&testLogger{t})
 	err := backend.Init()
 	if err != nil {
 		return err
 	}
-	err = backend.CreateMailbox(mailbox.Info{
+	return prepareBackend(backend)
+}
+
+func prepareBackend(backend Backend) error {
+	info := mailbox.Info{
 		Delimiter: backend.Delimiter(),
 		Name:      "INBOX",
-	})
+	}
+	existing, err := backend.ListMailbox()
+	if err != nil {
+		return err
+	}
+	if mailboxExists(info.Name, existing) {
+		// no need to create the mailbox and add a message to it
+		return nil
+	}
+	err = backend.CreateMailbox(info)
+	if err != nil {
+		return err
+	}
+	buffer := bytes.NewBufferString(sampleMessage)
+	err = backend.PutMessage(info, []string{"\\Seen"}, time.Now(), buffer)
 	if err != nil {
 		return err
 	}
