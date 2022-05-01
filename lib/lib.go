@@ -3,6 +3,9 @@ package lib
 import "strings"
 
 func VerifyDelimiter(name, existingDelimiter, expectedDelimiter string) string {
+	if existingDelimiter == "" || expectedDelimiter == "" {
+		return name
+	}
 	if existingDelimiter == expectedDelimiter {
 		return name
 	}

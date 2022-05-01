@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	bolt "go.etcd.io/bbolt"
 )
@@ -35,6 +36,10 @@ func NewBoltStore(filename string) (*BoltStore, error) {
 		dbFile: filename,
 		db:     db,
 	}, nil
+}
+
+func (s *BoltStore) Delimiter() string {
+	return "."
 }
 
 func (s *BoltStore) Exists() bool {
@@ -77,6 +82,8 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	if err != nil {
 		return err
 	}
+
+	info = mailbox.ChangeDelimiter(info, s.Delimiter())
 
 	bucket, err := root.CreateBucketIfNotExists([]byte(info.Name))
 	if err != nil {
@@ -132,6 +139,18 @@ func (s *BoltStore) ListMailbox() ([]mailbox.Info, error) {
 		return nil, err
 	}
 	return list, nil
+}
+
+func (s *BoltStore) DeleteMailbox(info mailbox.Info) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return nil
+		}
+		name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+
+		return bucket.DeleteBucket([]byte(name))
+	})
 }
 
 func (s *BoltStore) Backup(filename string) error {

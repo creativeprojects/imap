@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/creativeprojects/clog"
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/emersion/go-imap"
@@ -12,34 +11,45 @@ import (
 )
 
 type Config struct {
-	ServerURL string
-	Username  string
-	Password  string
-	Logger    clog.Logger
+	ServerURL   string
+	Username    string
+	Password    string
+	DebugLogger Logger
+	NoTLS       bool
 }
 
 type Imap struct {
-	client *client.Client
-	log    clog.Logger
+	client    *client.Client
+	log       Logger
+	delimiter string
 }
 
 func NewImap(cfg Config) (*Imap, error) {
-	log := cfg.Logger
+	log := cfg.DebugLogger
+	if log == nil {
+		log = &noLog{}
+	}
 	if cfg.ServerURL == "" || cfg.Username == "" || cfg.Password == "" {
 		return nil, errors.New("missing information from Config object")
 	}
 
-	log.Debugf("Connecting to server %s...", cfg.ServerURL)
-	imapClient, err := client.DialTLS(cfg.ServerURL, nil)
+	var imapClient *client.Client
+	var err error
+	log.Printf("Connecting to server %s...", cfg.ServerURL)
+	if cfg.NoTLS {
+		imapClient, err = client.Dial(cfg.ServerURL)
+	} else {
+		imapClient, err = client.DialTLS(cfg.ServerURL, nil)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to server %s: %w", cfg.ServerURL, err)
 	}
-	log.Debug("Connected")
+	log.Print("Connected")
 
 	if err := imapClient.Login(cfg.Username, cfg.Password); err != nil {
 		return nil, fmt.Errorf("authentication failure: %w", err)
 	}
-	log.Debugf("Logged in as %s", cfg.Username)
+	log.Printf("Logged in as %s", cfg.Username)
 
 	return &Imap{
 		client: imapClient,
@@ -48,7 +58,15 @@ func NewImap(cfg Config) (*Imap, error) {
 }
 
 func (i *Imap) Close() error {
+	i.log.Print("Closing connection")
 	return i.client.Logout()
+}
+
+func (i *Imap) Delimiter() string {
+	if i.delimiter == "" {
+		_, _ = i.ListMailbox()
+	}
+	return i.delimiter
 }
 
 func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
@@ -58,15 +76,19 @@ func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 		done <- i.client.List("", "*", mailboxes)
 	}()
 
-	i.log.Debug("Listing mailboxes:")
+	i.log.Print("Listing mailboxes:")
 	info := make([]mailbox.Info, 0, 10)
 	for m := range mailboxes {
-		i.log.Debugf("* %q: %+v (delimiter = %q)", m.Name, m.Attributes, m.Delimiter)
+		i.log.Printf("* %q: %+v (delimiter = %q)", m.Name, m.Attributes, m.Delimiter)
 		info = append(info, mailbox.Info{
 			Attributes: m.Attributes,
 			Delimiter:  m.Delimiter,
 			Name:       m.Name,
 		})
+		// sets the delimiter (if not already set)
+		if i.delimiter == "" {
+			i.delimiter = m.Delimiter
+		}
 	}
 
 	if err := <-done; err != nil {
@@ -77,8 +99,6 @@ func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 
 func (i *Imap) CreateMailbox(info mailbox.Info) error {
 	name := info.Name
-	// Let's load the list of existing mailboxes,
-	// which will also give us the delimiter used by the server
 	mailboxes, err := i.ListMailbox()
 	if err != nil {
 		return err
@@ -90,9 +110,22 @@ func (i *Imap) CreateMailbox(info mailbox.Info) error {
 				return nil
 			}
 		}
-		expectedDelimiter := mailboxes[0].Delimiter
-		name = lib.VerifyDelimiter(name, info.Delimiter, expectedDelimiter)
+		name = lib.VerifyDelimiter(name, info.Delimiter, i.Delimiter())
 	}
 
+	i.log.Printf("Creating mailbox %q using delimiter %q", name, i.Delimiter())
 	return i.client.Create(name)
+}
+
+func (i *Imap) DeleteMailbox(info mailbox.Info) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
+	i.log.Printf("Deleting mailbox %q using delimiter %q", name, i.Delimiter())
+	return i.client.Delete(name)
+}
+
+func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
+	i.log.Printf("Selecting mailbox %q using delimiter %q", name, i.Delimiter())
+	i.client.Select(name, false)
+	return nil, nil
 }

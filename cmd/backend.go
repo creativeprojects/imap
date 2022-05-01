@@ -8,9 +8,13 @@ import (
 )
 
 type Backend interface {
+	// Delimiter used to construct a path of mailboxes with its children
+	Delimiter() string
+	// Close the backend
 	Close() error
 	CreateMailbox(info mailbox.Info) error
 	ListMailbox() ([]mailbox.Info, error)
+	DeleteMailbox(info mailbox.Info) error
 }
 
 // verify interface
