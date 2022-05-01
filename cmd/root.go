@@ -51,10 +51,11 @@ func initLog() {
 	case global.quiet:
 		term.SetLevel(term.LevelWarn)
 	}
-	term.Info("IMAP tools")
 }
 
-func Execute() {
+func Execute(buildVersion, buildCommit, buildDate, buildBy string) {
+	term.Infof("IMAP tools version %s built by %s (%s)", buildVersion, buildBy, buildDate)
+
 	if err := rootCmd.Execute(); err != nil {
 		term.Error(err)
 		os.Exit(1)

@@ -29,6 +29,10 @@ func (m *Maildir) Close() error {
 	return nil
 }
 
+func (m *Maildir) Root() string {
+	return m.root
+}
+
 func (s *Maildir) Delimiter() string {
 	return Delimiter
 }

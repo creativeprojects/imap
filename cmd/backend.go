@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+
+	"github.com/creativeprojects/imap/cfg"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/mdir"
 	"github.com/creativeprojects/imap/remote"
@@ -23,3 +26,20 @@ var (
 	_ Backend = &store.BoltStore{}
 	_ Backend = &mdir.Maildir{}
 )
+
+func NewBackend(config cfg.Account) (Backend, error) {
+	switch config.Type {
+	case cfg.IMAP:
+		return remote.NewImap(remote.Config{
+			ServerURL: config.ServerURL,
+			Username:  config.Username,
+			Password:  config.Password,
+		})
+	case cfg.LOCAL:
+		return store.NewBoltStore(config.File)
+	case cfg.MAILDIR:
+		return mdir.New(config.Root)
+	default:
+		return nil, fmt.Errorf("unsupported account type %q", config.Type)
+	}
+}

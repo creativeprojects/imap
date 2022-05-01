@@ -1,4 +1,6 @@
+test.yaml
 /imap.yaml
 /maildir*
 /.cache
 /local
+/imap

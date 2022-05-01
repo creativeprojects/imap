@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/creativeprojects/imap/cfg"
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/mdir"
@@ -66,15 +67,8 @@ func TestMaildirBackend(t *testing.T) {
 	backend, err := mdir.New(root)
 	require.NoError(t, err)
 
-	backend.CreateMailbox(mailbox.Info{
-		Delimiter: backend.Delimiter(),
-		Name:      "INBOX",
-	})
-
-	// adds a random file at the root of maildir
-	file, err := os.Create(filepath.Join(root, "info.json"))
-	assert.NoError(t, err)
-	file.Close()
+	err = prepareMaildirBackend(backend)
+	require.NoError(t, err)
 
 	runTestBackend(t, backend)
 }
@@ -84,15 +78,36 @@ func TestStoreBackend(t *testing.T) {
 	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
 	require.NoError(t, err)
 
-	err = backend.Init()
-	require.NoError(t, err)
-	err = backend.CreateMailbox(mailbox.Info{
-		Delimiter: ".",
-		Name:      "INBOX",
-	})
+	err = prepareLocalBackend(backend)
 	require.NoError(t, err)
 
 	runTestBackend(t, backend)
+}
+
+func TestBackendFromConfig(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NoError(t, err)
+
+	filename := filepath.Join(wd, "test.yaml")
+	config, err := cfg.LoadFromFile(filename)
+	if err != nil {
+		t.Skip(err)
+		return
+	}
+
+	for name, account := range config.Accounts {
+		backend, err := NewBackend(account)
+		require.NoError(t, err)
+
+		// switch account.Type{
+		// case cfg.LOCAL:
+		// 	err:=prepareLocalBackend(backend)
+		// }
+
+		t.Run(name, func(t *testing.T) {
+			runTestBackend(t, backend)
+		})
+	}
 }
 
 func runTestBackend(t *testing.T, backend Backend) {
@@ -138,6 +153,39 @@ func runTestBackend(t *testing.T, backend Backend) {
 		createMailbox(t, backend, info)
 		deleteMailbox(t, backend, info)
 	})
+}
+
+func prepareMaildirBackend(backend *mdir.Maildir) error {
+	err := backend.CreateMailbox(mailbox.Info{
+		Delimiter: backend.Delimiter(),
+		Name:      "INBOX",
+	})
+	if err != nil {
+		return err
+	}
+
+	// adds a random file at the root of maildir
+	file, err := os.Create(filepath.Join(backend.Root(), "info.json"))
+	if err != nil {
+		return err
+	}
+	file.Close()
+	return nil
+}
+
+func prepareLocalBackend(backend *store.BoltStore) error {
+	err := backend.Init()
+	if err != nil {
+		return err
+	}
+	err = backend.CreateMailbox(mailbox.Info{
+		Delimiter: backend.Delimiter(),
+		Name:      "INBOX",
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func createMailbox(t *testing.T, backend Backend, info mailbox.Info) {
