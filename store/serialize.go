@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
+	"strconv"
 )
 
 func SerializeData(fields map[string]string) ([]byte, error) {
@@ -49,4 +50,14 @@ func DeserializeObject[T any](input []byte) (*T, error) {
 	decoder := gob.NewDecoder(bytes.NewBuffer(input))
 	err := decoder.Decode(&output)
 	return output, err
+}
+
+func SerializeUID(prefix string, uid uint32) []byte {
+	return []byte(prefix + strconv.FormatUint(uint64(uid), 32))
+}
+
+func DeserializeUID(prefix string, key []byte) uint32 {
+	key = bytes.TrimLeft(key, prefix)
+	uid, _ := strconv.ParseUint(string(key), 10, 32)
+	return uint32(uid)
 }

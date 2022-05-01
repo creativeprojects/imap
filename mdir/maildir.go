@@ -125,6 +125,10 @@ func (m *Maildir) PutMessage(info mailbox.Info, flags []string, date time.Time, 
 	return nil
 }
 
+func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
+	return nil
+}
+
 func (m *Maildir) statusFile(name string) string {
 	return filepath.Join(m.root, name+".json")
 }

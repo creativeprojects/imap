@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -18,6 +19,8 @@ const (
 	mailboxBucket   = "mailbox"
 	infoKey         = "info"
 	statusKey       = "status"
+	bodyPrefix      = "body-"
+	flagsPrefix     = "flags-"
 	versionKey      = "version"
 	boltFileVersion = 1
 )
@@ -218,9 +221,31 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 		if err != nil {
 			return err
 		}
+		uid := status.UidNext
+		buffer := &bytes.Buffer{}
+		read, err := buffer.ReadFrom(body)
+		if err != nil {
+			return fmt.Errorf("cannot read message body: %w", err)
+		}
+		err = mbox.Put(SerializeUID(bodyPrefix, uid), buffer.Bytes())
+		if err != nil {
+			return fmt.Errorf("cannot save message body: %w", err)
+		}
+		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d", name, uid, read)
+
+		err = storeUID(bucket, flagsPrefix, uid, &flags)
+		if err != nil {
+			return err
+		}
+
+		status.UidNext++
 		status.Messages++
 		return setMailboxStatus(mbox, *status)
 	})
+}
+
+func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
+	return nil
 }
 
 func (s *BoltStore) Backup(filename string) error {
@@ -283,4 +308,16 @@ func getMailboxStatus(bucket *bolt.Bucket) (*mailbox.Status, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func storeUID[T any](bucket *bolt.Bucket, prefix string, uid uint32, data *T) error {
+	serialized, err := SerializeObject(data)
+	if err != nil {
+		return err
+	}
+	err = bucket.Put(SerializeUID(flagsPrefix, uid), serialized)
+	if err != nil {
+		return err
+	}
+	return nil
 }

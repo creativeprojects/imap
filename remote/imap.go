@@ -25,6 +25,7 @@ type Imap struct {
 	client    *client.Client
 	log       lib.Logger
 	delimiter string
+	selected  *mailbox.Status
 }
 
 func NewImap(cfg Config) (*Imap, error) {
@@ -133,7 +134,7 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &mailbox.Status{
+	i.selected = &mailbox.Status{
 		Name:           status.Name,
 		Flags:          status.Flags,
 		PermanentFlags: status.PermanentFlags,
@@ -143,7 +144,8 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 		UnseenSeqNum:   status.UnseenSeqNum,
 		UidNext:        status.UidNext,
 		UidValidity:    status.UidValidity,
-	}, nil
+	}
+	return i.selected, nil
 }
 
 func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
@@ -159,4 +161,41 @@ func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, bod
 		return fmt.Errorf("cannot append new message to IMAP server: %w", err)
 	}
 	return nil
+}
+
+func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
+	seqset := new(imap.SeqSet)
+	seqset.AddRange(0, i.selected.Messages)
+
+	section := &imap.BodySectionName{Peek: true}
+	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid}
+
+	receiver := make(chan *imap.Message, 10)
+	// done := make(chan error, 1)
+	// go func() {
+	// 	done <- i.client.Fetch(seqset, items, receiver)
+	// }()
+
+	go func() {
+		for msg := range receiver {
+			// receive all the messages as they get in
+			message := &mailbox.Message{
+				SeqNum:       msg.SeqNum,
+				Flags:        msg.Flags,
+				InternalDate: msg.InternalDate,
+				Size:         msg.Size,
+				Uid:          msg.Uid,
+				Body:         msg.GetBody(section),
+			}
+			// and transfer them to the output
+			messages <- message
+		}
+		close(messages)
+	}()
+	// will return the error from Fetch when it's finished
+	// err := <-done
+	// send a nil message to signal it's the end
+	// messages <- nil
+	err := i.client.Fetch(seqset, items, receiver)
+	return err
 }

@@ -213,6 +213,26 @@ func runTestBackend(t *testing.T, backend Backend) {
 		assert.Equal(t, uint32(0), status.Unseen)
 	})
 
+	t.Run("FetchOneMessage", func(t *testing.T) {
+		receiver := make(chan *mailbox.Message, 10)
+		done := make(chan error, 1)
+		go func() {
+			done <- backend.FetchMessages(receiver)
+		}()
+
+		for msg := range receiver {
+			if msg == nil {
+				break
+			}
+			t.Logf("Received message seq=%d uid=%d size=%d flags=%+v", msg.SeqNum, msg.Uid, msg.Size, msg.Flags)
+		}
+
+		// wait until all the messages arrived
+		err := <-done
+		// close(receiver)
+		require.NoError(t, err)
+	})
+
 	t.Run("DeleteSimpleMailbox", func(t *testing.T) {
 		deleteMailbox(t, backend, mailbox.Info{
 			Delimiter: backend.Delimiter(),
