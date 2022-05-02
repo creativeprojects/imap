@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -80,6 +81,10 @@ func TestImapBackend(t *testing.T) {
 }
 
 func TestMaildirBackend(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("it looks like maildir is not working on Windows")
+		return
+	}
 	root := t.TempDir()
 	backend, err := mdir.New(root)
 	require.NoError(t, err)
@@ -137,6 +142,10 @@ func TestBackendFromConfig(t *testing.T) {
 			})
 
 		case cfg.MAILDIR:
+			if runtime.GOOS == "windows" {
+				t.Log("it looks like maildir is not working on Windows")
+				continue
+			}
 			backend, err := mdir.New(account.Root)
 			require.NoError(t, err)
 			defer backend.Close()
