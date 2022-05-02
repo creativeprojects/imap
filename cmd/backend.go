@@ -20,9 +20,13 @@ type Backend interface {
 	CreateMailbox(info mailbox.Info) error
 	ListMailbox() ([]mailbox.Info, error)
 	DeleteMailbox(info mailbox.Info) error
+	// SelectMailbox opens the current mailbox for fetching messages
 	SelectMailbox(info mailbox.Info) (*mailbox.Status, error)
-	PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error
-	FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error
+	PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error)
+	// FetchMessages needs a mailbox to be selected first
+	FetchMessages(messages chan *mailbox.Message) error
+	// UnselectMailbox after fetching messages
+	UnselectMailbox() error
 }
 
 // verify interface

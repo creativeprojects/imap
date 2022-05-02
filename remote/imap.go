@@ -149,22 +149,22 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	return i.selected, nil
 }
 
-func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
+func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
 	buffer := &bytes.Buffer{}
 	read, err := buffer.ReadFrom(body)
 	if err != nil {
-		return fmt.Errorf("cannot read message body: %w", err)
+		return mailbox.EmptyMessageID, fmt.Errorf("cannot read message body: %w", err)
 	}
 	i.log.Printf("Message body: read %d bytes", read)
 	err = i.client.Append(name, flags, date, buffer)
 	if err != nil {
-		return fmt.Errorf("cannot append new message to IMAP server: %w", err)
+		return mailbox.EmptyMessageID, fmt.Errorf("cannot append new message to IMAP server: %w", err)
 	}
-	return nil
+	return mailbox.EmptyMessageID, nil
 }
 
-func (i *Imap) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
+func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 	seqset := new(imap.SeqSet)
 	seqset.AddRange(0, i.selected.Messages)
 
@@ -182,14 +182,14 @@ func (i *Imap) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) 
 	go func() {
 		defer wg.Done()
 		for msg := range receiver {
-			i.log.Printf("Received message seq=%d", msg.SeqNum)
+			i.log.Printf("Received IMAP message seq=%d", msg.SeqNum)
 			// receive all the messages as they get in
 			message := &mailbox.Message{
 				SeqNum:       msg.SeqNum,
 				Flags:        msg.Flags,
 				InternalDate: msg.InternalDate,
 				Size:         msg.Size,
-				Uid:          msg.Uid,
+				Uid:          mailbox.NewMessageIDFromUint(msg.Uid),
 				Body:         io.NopCloser(msg.GetBody(section)),
 			}
 			// and transfer them to the output
@@ -200,12 +200,11 @@ func (i *Imap) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) 
 	err := <-done
 	wg.Wait()
 	close(messages)
-	i.log.Print("All messages received")
-	_ = i.Unselect()
+	i.log.Print("All IMAP messages received")
 	return err
 }
 
-func (i *Imap) Unselect() error {
+func (i *Imap) UnselectMailbox() error {
 	i.selected = nil
 	return i.client.Unselect()
 }

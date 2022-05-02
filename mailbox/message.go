@@ -6,7 +6,7 @@ import (
 )
 
 type Message struct {
-	// The message sequence number. It must be greater than or equal to 1.
+	// The message sequence number.
 	SeqNum uint32
 	// The message flags.
 	Flags []string
@@ -14,8 +14,8 @@ type Message struct {
 	InternalDate time.Time
 	// The message size.
 	Size uint32
-	// The message unique identifier. It must be greater than or equal to 1.
-	Uid uint32
+	// The message unique identifier.
+	Uid MessageID
 	// The message body.
 	Body io.ReadCloser
 }

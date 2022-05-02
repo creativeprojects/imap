@@ -18,8 +18,9 @@ import (
 const Delimiter = "."
 
 type Maildir struct {
-	root string
-	log  lib.Logger
+	root     string
+	log      lib.Logger
+	selected string
 }
 
 func New(root string) (*Maildir, error) {
@@ -96,37 +97,54 @@ func (m *Maildir) DeleteMailbox(info mailbox.Info) error {
 
 func (m *Maildir) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, m.Delimiter())
+	m.selected = name
 	return m.getMailboxStatus(name)
 }
 
-func (m *Maildir) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
+func (m *Maildir) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	mbox := maildir.Dir(filepath.Join(m.root, name))
-	key, writer, err := mbox.Create(toFlags(flags))
+	key, copied, err := m.createFromStream(mbox, flags, body)
 	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	copied, err := io.Copy(writer, body)
-	if err != nil {
-		return err
+		return mailbox.EmptyMessageID, err
 	}
 	m.log.Printf("Message saved: mailbox=%q key=%q size=%d", name, key, copied)
 
+	filename, err := mbox.Filename(key)
+	if err == nil {
+		_ = os.Chtimes(filename, time.Now(), date)
+	}
+
 	status, err := m.getMailboxStatus(name)
 	if err != nil {
-		return err
+		return mailbox.EmptyMessageID, err
 	}
 	status.Messages++
 	err = m.setMailboxStatus(name, *status)
 	if err != nil {
-		return err
+		return mailbox.EmptyMessageID, err
 	}
-	return nil
+	return mailbox.NewMessageIDFromString(key), nil
 }
 
-func (m *Maildir) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
-	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Reader) (string, int64, error) {
+	key, writer, err := mbox.Create(toFlags(flags))
+	if err != nil {
+		return key, 0, err
+	}
+	defer writer.Close()
+	copied, err := io.Copy(writer, body)
+	if err != nil {
+		return key, copied, err
+	}
+	return key, copied, nil
+}
+
+func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
+	if m.selected == "" {
+		return lib.ErrNotSelected
+	}
+	name := m.selected
 	mbox := maildir.Dir(filepath.Join(m.root, name))
 	keys, err := mbox.Keys()
 	if err != nil {
@@ -155,11 +173,17 @@ func (m *Maildir) FetchMessages(info mailbox.Info, messages chan *mailbox.Messag
 			SeqNum:       count,
 			Flags:        flagsToStrings(flags),
 			InternalDate: info.ModTime(),
+			Uid:          mailbox.NewMessageIDFromString(key),
 			Body:         file,
 			Size:         uint32(info.Size()),
 		}
 	}
 	close(messages)
+	return nil
+}
+
+func (m *Maildir) UnselectMailbox() error {
+	m.selected = ""
 	return nil
 }
 

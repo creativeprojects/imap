@@ -26,9 +26,10 @@ const (
 )
 
 type BoltStore struct {
-	dbFile string
-	db     *bolt.DB
-	log    lib.Logger
+	dbFile   string
+	db       *bolt.DB
+	log      lib.Logger
+	selected string
 }
 
 func NewBoltStore(filename string) (*BoltStore, error) {
@@ -203,11 +204,13 @@ func (s *BoltStore) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	if err != nil {
 		return nil, err
 	}
+	s.selected = name
 	return status, nil
 }
 
-func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
+	var messageID mailbox.MessageID
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(mailboxBucket))
 		if bucket == nil {
 			return lib.ErrMailboxNotFound
@@ -242,10 +245,16 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 		status.Messages++
 		return setMailboxStatus(mbox, *status)
 	})
+	return messageID, err
 }
 
-func (s *BoltStore) FetchMessages(info mailbox.Info, messages chan *mailbox.Message) error {
-	name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
+	defer close(messages)
+
+	if s.selected == "" {
+		return lib.ErrNotSelected
+	}
+	name := s.selected
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -274,7 +283,7 @@ func (s *BoltStore) FetchMessages(info mailbox.Info, messages chan *mailbox.Mess
 				}
 				messages <- &mailbox.Message{
 					SeqNum: count,
-					Uid:    DeserializeUID(bodyPrefix, key),
+					Uid:    mailbox.NewMessageIDFromUint(DeserializeUID(bodyPrefix, key)),
 					Flags:  *flags,
 					Size:   uint32(len(value)),
 					Body:   io.NopCloser(bytes.NewReader(value)),
@@ -287,7 +296,11 @@ func (s *BoltStore) FetchMessages(info mailbox.Info, messages chan *mailbox.Mess
 	if err != nil {
 		return err
 	}
-	close(messages)
+	return nil
+}
+
+func (s *BoltStore) UnselectMailbox() error {
+	s.selected = ""
 	return nil
 }
 

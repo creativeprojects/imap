@@ -14,6 +14,7 @@ import (
 	"github.com/creativeprojects/imap/mdir"
 	"github.com/creativeprojects/imap/remote"
 	"github.com/creativeprojects/imap/store"
+	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/backend/memory"
 	"github.com/emersion/go-imap/server"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ import (
 	"golang.org/x/net/nettest"
 )
 
-const (
+var (
 	sampleMessage = "From: contact@example.org\r\n" +
 		"To: contact@example.org\r\n" +
 		"Subject: A little message, just for you\r\n" +
@@ -30,6 +31,8 @@ const (
 		"Content-Type: text/plain\r\n" +
 		"\r\n" +
 		"Hi there :)"
+	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.Local)
+	sampleMessageFlags = []string{imap.SeenFlag}
 )
 
 func TestImapBackend(t *testing.T) {
@@ -39,7 +42,7 @@ func TestImapBackend(t *testing.T) {
 	// Create a new server
 	server := server.New(be)
 	// Since we will use this server for testing only, we can allow plain text
-	// authentication over unencrypted connections
+	// authentication over non-encrypted connections
 	server.AllowInsecureAuth = true
 
 	listener, err := nettest.NewLocalListener("tcp")
@@ -201,7 +204,7 @@ func runTestBackend(t *testing.T, backend Backend) {
 			Name:      "Work",
 		}
 		body := bytes.NewBufferString(sampleMessage)
-		err := backend.PutMessage(info, []string{"\\Seen"}, time.Now(), body)
+		err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
 		require.NoError(t, err)
 
 		// Verify the mailbox shows 1 message
@@ -214,14 +217,10 @@ func runTestBackend(t *testing.T, backend Backend) {
 	})
 
 	t.Run("FetchOneMessage", func(t *testing.T) {
-		info := mailbox.Info{
-			Delimiter: backend.Delimiter(),
-			Name:      "Work",
-		}
 		receiver := make(chan *mailbox.Message, 10)
 		done := make(chan error, 1)
 		go func() {
-			done <- backend.FetchMessages(info, receiver)
+			done <- backend.FetchMessages(receiver)
 		}()
 
 		count := 0
@@ -233,14 +232,20 @@ func runTestBackend(t *testing.T, backend Backend) {
 			assert.NoError(t, err)
 			msg.Body.Close()
 			assert.Equal(t, int64(len(sampleMessage)), read)
+			if !msg.InternalDate.IsZero() {
+				assert.Equal(t, sampleMessageDate, msg.InternalDate)
+			}
+			assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
 			t.Logf("Received message seq=%d uid=%d size=%d flags=%+v", msg.SeqNum, msg.Uid, read, msg.Flags)
 		}
 		assert.Equal(t, 1, count)
 
 		// wait until all the messages arrived
 		err := <-done
-		// close(receiver)
-		require.NoError(t, err)
+		assert.NoError(t, err)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
 	})
 
 	t.Run("DeleteSimpleMailbox", func(t *testing.T) {
