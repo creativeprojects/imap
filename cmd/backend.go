@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/creativeprojects/imap/cfg"
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/mdir"
 	"github.com/creativeprojects/imap/remote"
@@ -13,6 +14,8 @@ import (
 )
 
 type Backend interface {
+	// DebugLogger sets a logger to send debug information to
+	DebugLogger(logger lib.Logger)
 	// Delimiter used to construct a path of mailboxes with its children
 	Delimiter() string
 	// SupportMessageID indicates if the backend support unique IDs (like the IMAP UIDPLUS extension)

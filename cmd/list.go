@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/pterm/pterm"
@@ -32,6 +33,10 @@ func runList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("cannot open backend: %w", err)
 	}
+	if global.verbose {
+		backend.DebugLogger(log.Default())
+	}
+
 	mailboxes, err := backend.ListMailbox()
 	if err != nil {
 		return fmt.Errorf("cannot list account mailbox: %w", err)

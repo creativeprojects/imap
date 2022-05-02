@@ -15,6 +15,7 @@ import (
 	"github.com/creativeprojects/imap/remote"
 	"github.com/creativeprojects/imap/store"
 	"github.com/emersion/go-imap"
+	compress "github.com/emersion/go-imap-compress"
 	"github.com/emersion/go-imap/backend/memory"
 	"github.com/emersion/go-imap/server"
 	"github.com/stretchr/testify/assert"
@@ -44,6 +45,7 @@ func TestImapBackend(t *testing.T) {
 	// Since we will use this server for testing only, we can allow plain text
 	// authentication over non-encrypted connections
 	server.AllowInsecureAuth = true
+	server.Enable(compress.NewExtension())
 
 	listener, err := nettest.NewLocalListener("tcp")
 	require.NoError(t, err)
@@ -82,6 +84,8 @@ func TestMaildirBackend(t *testing.T) {
 	backend, err := mdir.New(root)
 	require.NoError(t, err)
 
+	backend.DebugLogger(&testLogger{t})
+
 	err = prepareMaildirBackend(t, backend)
 	require.NoError(t, err)
 
@@ -92,6 +96,8 @@ func TestStoreBackend(t *testing.T) {
 	dir := t.TempDir()
 	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
 	require.NoError(t, err)
+
+	backend.DebugLogger(&testLogger{t})
 
 	err = prepareLocalBackend(t, backend)
 	require.NoError(t, err)
@@ -117,6 +123,8 @@ func TestBackendFromConfig(t *testing.T) {
 			require.NoError(t, err)
 			defer backend.Close()
 
+			backend.DebugLogger(&testLogger{t})
+
 			err = prepareLocalBackend(t, backend)
 			require.NoError(t, err)
 
@@ -128,6 +136,8 @@ func TestBackendFromConfig(t *testing.T) {
 			backend, err := mdir.New(account.Root)
 			require.NoError(t, err)
 			defer backend.Close()
+
+			backend.DebugLogger(&testLogger{t})
 
 			err = prepareMaildirBackend(t, backend)
 			require.NoError(t, err)
@@ -142,6 +152,7 @@ func TestBackendFromConfig(t *testing.T) {
 				Username:            account.Username,
 				Password:            account.Password,
 				SkipTLSVerification: account.SkipTLSVerification,
+				DebugLogger:         &testLogger{t},
 			})
 			require.NoError(t, err)
 			defer backend.Close()
