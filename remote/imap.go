@@ -12,7 +12,6 @@ import (
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/emersion/go-imap"
-	compress "github.com/emersion/go-imap-compress"
 	uidplus "github.com/emersion/go-imap-uidplus"
 	"github.com/emersion/go-imap/client"
 )
@@ -27,12 +26,11 @@ type Config struct {
 }
 
 type Imap struct {
-	client         *client.Client
-	uidplusClient  *uidplus.Client
-	compressClient *compress.Client
-	log            lib.Logger
-	delimiter      string
-	selected       *mailbox.Status
+	client        *client.Client
+	uidplusClient *uidplus.Client
+	log           lib.Logger
+	delimiter     string
+	selected      *mailbox.Status
 }
 
 func NewImap(cfg Config) (*Imap, error) {
@@ -66,6 +64,10 @@ func NewImap(cfg Config) (*Imap, error) {
 	}
 	log.Printf("Logged in as %s", cfg.Username)
 
+	if caps, err := imapClient.Capability(); err == nil {
+		log.Printf("capabilities: %+v", caps)
+	}
+
 	// try to enable UIDPLUS extension
 	uidExt := uidplus.NewClient(imapClient)
 	supported, err := uidExt.SupportUidPlus()
@@ -74,25 +76,10 @@ func NewImap(cfg Config) (*Imap, error) {
 		uidExt = nil
 	}
 
-	// enable compression if possible
-	comp := compress.NewClient(imapClient)
-	if ok, err := comp.SupportCompress(compress.Deflate); err != nil {
-		log.Print("IMAP server does NOT support COMPRESS extension")
-		comp = nil
-	} else if ok {
-		if err := comp.Compress(compress.Deflate); err != nil {
-			log.Print("IMAP server does NOT support deflate algorithm")
-			comp = nil
-		} else {
-			log.Print("compression enabled")
-		}
-	}
-
 	return &Imap{
-		client:         imapClient,
-		uidplusClient:  uidExt,
-		compressClient: comp,
-		log:            log,
+		client:        imapClient,
+		uidplusClient: uidExt,
+		log:           log,
 	}, nil
 }
 

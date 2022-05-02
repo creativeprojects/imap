@@ -60,7 +60,7 @@ func TestImapBackend(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	client, err := remote.NewImap(remote.Config{
+	backend, err := remote.NewImap(remote.Config{
 		ServerURL:   listener.Addr().String(),
 		Username:    "username",
 		Password:    "password",
@@ -69,8 +69,8 @@ func TestImapBackend(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	runTestBackend(t, client)
-	err = client.Close()
+	runTestBackend(t, backend)
+	err = backend.Close()
 	assert.NoError(t, err)
 
 	// close the server
@@ -84,6 +84,8 @@ func TestMaildirBackend(t *testing.T) {
 	backend, err := mdir.New(root)
 	require.NoError(t, err)
 
+	defer backend.Close()
+
 	backend.DebugLogger(&testLogger{t})
 
 	err = prepareMaildirBackend(t, backend)
@@ -96,6 +98,8 @@ func TestStoreBackend(t *testing.T) {
 	dir := t.TempDir()
 	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
 	require.NoError(t, err)
+
+	defer backend.Close()
 
 	backend.DebugLogger(&testLogger{t})
 

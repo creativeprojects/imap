@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/creativeprojects/clog v0.9.0
 	github.com/emersion/go-imap v1.2.1
+	github.com/emersion/go-imap-compress v0.0.0-20201103190257-14809af1d1b9
 	github.com/emersion/go-imap-uidplus v0.0.0-20200503180755-e75854c361e9
 	github.com/emersion/go-maildir v0.3.0
 	github.com/pterm/pterm v0.12.41
@@ -18,7 +19,6 @@ require (
 require (
 	github.com/atomicgo/cursor v0.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/emersion/go-imap-compress v0.0.0-20201103190257-14809af1d1b9 // indirect
 	github.com/emersion/go-message v0.15.0 // indirect
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/emersion/go-textwrapper v0.0.0-20200911093747-65d896831594 // indirect
