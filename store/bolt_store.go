@@ -241,9 +241,9 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 		if err != nil {
 			return fmt.Errorf("cannot save message body: %w", err)
 		}
-		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d", name, uid, read)
+		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d flags=%+v", name, uid, read, flags)
 
-		err = storeUID(bucket, flagsPrefix, uid, &flags)
+		err = storeUID(mbox, flagsPrefix, uid, &flags)
 		if err != nil {
 			return err
 		}
@@ -276,6 +276,7 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 
 		var count uint32
 		err = mailboxBucket.ForEach(func(key, value []byte) error {
+			s.log.Printf("* Key %q", string(key))
 			if bytes.HasPrefix(key, []byte(bodyPrefix)) {
 				count++
 				flags := &([]string{})
@@ -377,7 +378,7 @@ func storeUID[T any](bucket *bolt.Bucket, prefix string, uid uint64, data *T) er
 	if err != nil {
 		return err
 	}
-	err = bucket.Put(SerializeUID(flagsPrefix, uid), serialized)
+	err = bucket.Put(SerializeUID(prefix, uid), serialized)
 	if err != nil {
 		return err
 	}
