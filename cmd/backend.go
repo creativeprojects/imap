@@ -42,9 +42,10 @@ func NewBackend(config cfg.Account) (Backend, error) {
 	switch config.Type {
 	case cfg.IMAP:
 		return remote.NewImap(remote.Config{
-			ServerURL: config.ServerURL,
-			Username:  config.Username,
-			Password:  config.Password,
+			ServerURL:           config.ServerURL,
+			Username:            config.Username,
+			Password:            config.Password,
+			SkipTLSVerification: config.SkipTLSVerification,
 		})
 	case cfg.LOCAL:
 		return store.NewBoltStore(config.File)

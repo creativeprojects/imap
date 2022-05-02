@@ -126,7 +126,7 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	status := mailbox.Status{
 		Name:           info.Name,
 		PermanentFlags: []string{"\\*"},
-		UidValidity:    1,
+		UidValidity:    lib.NewUID(),
 	}
 	err = setMailboxStatus(bucket, status)
 	if err != nil {

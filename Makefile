@@ -19,7 +19,7 @@ BUILD_DATE=`date`
 BUILD_COMMIT=`git rev-parse HEAD`
 
 all: download test build
-.PHONY: all download test build install
+.PHONY: all download test build install dovecot
 
 download:
 	@echo "[*] $@"
@@ -36,3 +36,7 @@ build: download
 install: download
 	@echo "[*] $@"
 	$(GOINSTALL) -v -ldflags "-X 'main.buildCommit=${BUILD_COMMIT}' -X 'main.buildDate=${BUILD_DATE}' -X 'main.buildBy=make'"
+
+dovecot:
+	@echo "[*] $@"
+	docker run -d --rm -p 143:143 -p 993:993 dovecot/dovecot:latest

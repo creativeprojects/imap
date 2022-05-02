@@ -134,9 +134,10 @@ func TestBackendFromConfig(t *testing.T) {
 
 		case cfg.IMAP:
 			backend, err := remote.NewImap(remote.Config{
-				ServerURL: account.ServerURL,
-				Username:  account.Username,
-				Password:  account.Password,
+				ServerURL:           account.ServerURL,
+				Username:            account.Username,
+				Password:            account.Password,
+				SkipTLSVerification: account.SkipTLSVerification,
 			})
 			require.NoError(t, err)
 

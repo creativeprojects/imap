@@ -20,12 +20,13 @@ type Config struct {
 }
 
 type Account struct {
-	Type      AccountType `yaml:"type"`
-	ServerURL string      `yaml:"serverURL"`
-	Username  string      `yaml:"username"`
-	Password  string      `yaml:"password"`
-	Root      string      `yaml:"root"`
-	File      string      `yaml:"file"`
+	Type                AccountType `yaml:"type"`
+	ServerURL           string      `yaml:"serverURL"`
+	Username            string      `yaml:"username"`
+	Password            string      `yaml:"password"`
+	Root                string      `yaml:"root"`
+	File                string      `yaml:"file"`
+	SkipTLSVerification bool        `yaml:"skipTLSverification"`
 }
 
 func newConfig() *Config {

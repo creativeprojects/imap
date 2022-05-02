@@ -70,7 +70,7 @@ func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	return m.setMailboxStatus(name, mailbox.Status{
 		Name:           name,
 		PermanentFlags: []string{"\\*"},
-		UidValidity:    1,
+		UidValidity:    lib.NewUID(),
 	})
 }
 

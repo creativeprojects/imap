@@ -2,6 +2,7 @@ package remote
 
 import (
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -16,11 +17,12 @@ import (
 )
 
 type Config struct {
-	ServerURL   string
-	Username    string
-	Password    string
-	DebugLogger lib.Logger
-	NoTLS       bool
+	ServerURL           string
+	Username            string
+	Password            string
+	DebugLogger         lib.Logger
+	NoTLS               bool
+	SkipTLSVerification bool
 }
 
 type Imap struct {
@@ -46,7 +48,11 @@ func NewImap(cfg Config) (*Imap, error) {
 	if cfg.NoTLS {
 		imapClient, err = client.Dial(cfg.ServerURL)
 	} else {
-		imapClient, err = client.DialTLS(cfg.ServerURL, nil)
+		tlsConfig := &tls.Config{}
+		if cfg.SkipTLSVerification {
+			tlsConfig.InsecureSkipVerify = true
+		}
+		imapClient, err = client.DialTLS(cfg.ServerURL, tlsConfig)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to server %s: %w", cfg.ServerURL, err)
@@ -201,7 +207,7 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 			// receive all the messages as they get in
 			message := &mailbox.Message{
 				SeqNum:       msg.SeqNum,
-				Flags:        msg.Flags,
+				Flags:        lib.StripRecentFlag(msg.Flags),
 				InternalDate: msg.InternalDate,
 				Size:         msg.Size,
 				Uid:          mailbox.NewMessageIDFromUint(msg.Uid),
