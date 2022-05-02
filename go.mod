@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/creativeprojects/clog v0.9.0
 	github.com/emersion/go-imap v1.2.1
+	github.com/emersion/go-imap-uidplus v0.0.0-20200503180755-e75854c361e9
 	github.com/emersion/go-maildir v0.3.0
 	github.com/pterm/pterm v0.12.41
 	github.com/spf13/cobra v1.4.0

@@ -15,6 +15,8 @@ import (
 type Backend interface {
 	// Delimiter used to construct a path of mailboxes with its children
 	Delimiter() string
+	// SupportMessageID indicates if the backend support unique IDs (like the IMAP UIDPLUS extension)
+	SupportMessageID() bool
 	// Close the backend
 	Close() error
 	CreateMailbox(info mailbox.Info) error

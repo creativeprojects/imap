@@ -11,6 +11,7 @@ import (
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/emersion/go-imap"
+	uidplus "github.com/emersion/go-imap-uidplus"
 	"github.com/emersion/go-imap/client"
 )
 
@@ -23,10 +24,11 @@ type Config struct {
 }
 
 type Imap struct {
-	client    *client.Client
-	log       lib.Logger
-	delimiter string
-	selected  *mailbox.Status
+	client        *client.Client
+	uidplusClient *uidplus.Client
+	log           lib.Logger
+	delimiter     string
+	selected      *mailbox.Status
 }
 
 func NewImap(cfg Config) (*Imap, error) {
@@ -56,9 +58,16 @@ func NewImap(cfg Config) (*Imap, error) {
 	}
 	log.Printf("Logged in as %s", cfg.Username)
 
+	uidExt := uidplus.NewClient(imapClient)
+	supported, err := uidExt.SupportUidPlus()
+	if err != nil || supported == false {
+		log.Print("IMAP server does NOT support UIDPLUS extension")
+		uidExt = nil
+	}
 	return &Imap{
-		client: imapClient,
-		log:    log,
+		client:        imapClient,
+		uidplusClient: uidExt,
+		log:           log,
 	}, nil
 }
 
@@ -72,6 +81,10 @@ func (i *Imap) Delimiter() string {
 		_, _ = i.ListMailbox()
 	}
 	return i.delimiter
+}
+
+func (i *Imap) SupportMessageID() bool {
+	return i.uidplusClient != nil
 }
 
 func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
@@ -140,10 +153,7 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 		Flags:          status.Flags,
 		PermanentFlags: status.PermanentFlags,
 		Messages:       status.Messages,
-		Recent:         status.Recent,
 		Unseen:         status.Unseen,
-		UnseenSeqNum:   status.UnseenSeqNum,
-		UidNext:        status.UidNext,
 		UidValidity:    status.UidValidity,
 	}
 	return i.selected, nil
@@ -157,11 +167,16 @@ func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, bod
 		return mailbox.EmptyMessageID, fmt.Errorf("cannot read message body: %w", err)
 	}
 	i.log.Printf("Message body: read %d bytes", read)
-	err = i.client.Append(name, flags, date, buffer)
+	var uid uint32
+	if i.uidplusClient != nil {
+		_, uid, err = i.uidplusClient.Append(name, flags, date, buffer)
+	} else {
+		err = i.client.Append(name, flags, date, buffer)
+	}
 	if err != nil {
 		return mailbox.EmptyMessageID, fmt.Errorf("cannot append new message to IMAP server: %w", err)
 	}
-	return mailbox.EmptyMessageID, nil
+	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
 func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {

@@ -1,5 +1,8 @@
 {
     "yaml.schemas": {
         "https://json.schemastore.org/github-workflow.json": "file:///Users/gouarfig/go/src/github.com/creativeprojects/imap/.github/workflows/build.yaml"
-    }
+    },
+    "cSpell.words": [
+        "maildir"
+    ]
 }

@@ -52,12 +52,12 @@ func DeserializeObject[T any](input []byte) (*T, error) {
 	return output, err
 }
 
-func SerializeUID(prefix string, uid uint32) []byte {
-	return []byte(prefix + strconv.FormatUint(uint64(uid), 32))
+func SerializeUID(prefix string, uid uint64) []byte {
+	return []byte(prefix + strconv.FormatUint(uid, 32))
 }
 
-func DeserializeUID(prefix string, key []byte) uint32 {
+func DeserializeUID(prefix string, key []byte) uint64 {
 	key = bytes.TrimPrefix(key, []byte(prefix))
 	uid, _ := strconv.ParseUint(string(key), 10, 32)
-	return uint32(uid)
+	return uid
 }

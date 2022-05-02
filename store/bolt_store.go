@@ -57,6 +57,10 @@ func (s *BoltStore) Delimiter() string {
 	return "."
 }
 
+func (s *BoltStore) SupportMessageID() bool {
+	return true
+}
+
 func (s *BoltStore) Exists() bool {
 	_, err := os.Stat(s.dbFile)
 	return err == nil
@@ -122,7 +126,6 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	status := mailbox.Status{
 		Name:           info.Name,
 		PermanentFlags: []string{"\\*"},
-		UidNext:        1,
 		UidValidity:    1,
 	}
 	err = setMailboxStatus(bucket, status)
@@ -224,7 +227,11 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 		if err != nil {
 			return err
 		}
-		uid := status.UidNext
+		uid, err := mbox.NextSequence()
+		if err != nil {
+			return fmt.Errorf("cannot get next message ID: %w", err)
+		}
+		messageID = mailbox.NewMessageIDFromUint(uint32(uid))
 		buffer := &bytes.Buffer{}
 		read, err := buffer.ReadFrom(body)
 		if err != nil {
@@ -241,7 +248,6 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 			return err
 		}
 
-		status.UidNext++
 		status.Messages++
 		return setMailboxStatus(mbox, *status)
 	})
@@ -283,7 +289,7 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 				}
 				messages <- &mailbox.Message{
 					SeqNum: count,
-					Uid:    mailbox.NewMessageIDFromUint(DeserializeUID(bodyPrefix, key)),
+					Uid:    mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
 					Flags:  *flags,
 					Size:   uint32(len(value)),
 					Body:   io.NopCloser(bytes.NewReader(value)),
@@ -366,7 +372,7 @@ func getMailboxStatus(bucket *bolt.Bucket) (*mailbox.Status, error) {
 	return info, nil
 }
 
-func storeUID[T any](bucket *bolt.Bucket, prefix string, uid uint32, data *T) error {
+func storeUID[T any](bucket *bolt.Bucket, prefix string, uid uint64, data *T) error {
 	serialized, err := SerializeObject(data)
 	if err != nil {
 		return err

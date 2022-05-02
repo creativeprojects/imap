@@ -50,6 +50,10 @@ func (s *Maildir) Delimiter() string {
 	return Delimiter
 }
 
+func (s *Maildir) SupportMessageID() bool {
+	return true
+}
+
 func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	dirName := filepath.Join(m.root, name)
@@ -66,7 +70,6 @@ func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	return m.setMailboxStatus(name, mailbox.Status{
 		Name:           name,
 		PermanentFlags: []string{"\\*"},
-		UidNext:        1,
 		UidValidity:    1,
 	})
 }

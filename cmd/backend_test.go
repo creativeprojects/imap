@@ -156,8 +156,9 @@ func runTestBackend(t *testing.T, backend Backend) {
 		list, err := backend.ListMailbox()
 		require.NoError(t, err)
 
-		require.Len(t, list, 1)
-		assert.Equal(t, "INBOX", list[0].Name)
+		// check there's at least one mailbox
+		require.Greater(t, len(list), 0)
+		// check the expected delimiter
 		assert.Equal(t, backend.Delimiter(), list[0].Delimiter)
 	})
 
@@ -188,7 +189,6 @@ func runTestBackend(t *testing.T, backend Backend) {
 		require.NoError(t, err)
 		t.Logf("%v", status)
 		assert.Equal(t, info.Name, status.Name)
-		assert.Equal(t, uint32(1), status.Messages)
 	})
 
 	t.Run("CreateSimpleMailbox", func(t *testing.T) {
@@ -204,8 +204,11 @@ func runTestBackend(t *testing.T, backend Backend) {
 			Name:      "Work",
 		}
 		body := bytes.NewBufferString(sampleMessage)
-		err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
+		uid, err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
 		require.NoError(t, err)
+		if backend.SupportMessageID() {
+			assert.NotZero(t, uid)
+		}
 
 		// Verify the mailbox shows 1 message
 		status, err := backend.SelectMailbox(info)
@@ -236,7 +239,7 @@ func runTestBackend(t *testing.T, backend Backend) {
 				assert.Equal(t, sampleMessageDate, msg.InternalDate)
 			}
 			assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
-			t.Logf("Received message seq=%d uid=%d size=%d flags=%+v", msg.SeqNum, msg.Uid, read, msg.Flags)
+			t.Logf("Received message seq=%d uid=%s size=%d flags=%+v", msg.SeqNum, msg.Uid.String(), read, msg.Flags)
 		}
 		assert.Equal(t, 1, count)
 
@@ -290,7 +293,7 @@ func prepareBackend(backend Backend) error {
 		return err
 	}
 	buffer := bytes.NewBufferString(sampleMessage)
-	err = backend.PutMessage(info, []string{"\\Seen"}, time.Now(), buffer)
+	_, err = backend.PutMessage(info, []string{"\\Seen"}, time.Now(), buffer)
 	if err != nil {
 		return err
 	}

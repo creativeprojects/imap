@@ -1,5 +1,7 @@
 package mailbox
 
+import "strconv"
+
 var (
 	EmptyMessageID MessageID
 )
@@ -38,5 +40,12 @@ func (i MessageID) AsUint() uint32 {
 }
 
 func (i MessageID) AsString() string {
+	return i.key
+}
+
+func (i MessageID) String() string {
+	if i.IsUint() {
+		return strconv.FormatUint(uint64(i.uid), 10)
+	}
 	return i.key
 }
