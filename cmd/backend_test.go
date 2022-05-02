@@ -115,6 +115,8 @@ func TestBackendFromConfig(t *testing.T) {
 		case cfg.LOCAL:
 			backend, err := store.NewBoltStore(account.File)
 			require.NoError(t, err)
+			defer backend.Close()
+
 			err = prepareLocalBackend(t, backend)
 			require.NoError(t, err)
 
@@ -125,6 +127,8 @@ func TestBackendFromConfig(t *testing.T) {
 		case cfg.MAILDIR:
 			backend, err := mdir.New(account.Root)
 			require.NoError(t, err)
+			defer backend.Close()
+
 			err = prepareMaildirBackend(t, backend)
 			require.NoError(t, err)
 
@@ -140,6 +144,7 @@ func TestBackendFromConfig(t *testing.T) {
 				SkipTLSVerification: account.SkipTLSVerification,
 			})
 			require.NoError(t, err)
+			defer backend.Close()
 
 			t.Run(name, func(t *testing.T) {
 				runTestBackend(t, backend)

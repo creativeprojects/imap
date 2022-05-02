@@ -89,7 +89,10 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		err = <-done
 		_ = backendSource.UnselectMailbox()
 		if pbar != nil {
-			pbar.Stop()
+			_, _ = pbar.Stop()
+		}
+		if err != nil {
+			term.Errorf("error loading messages: %s", err)
 		}
 	}
 	return nil
