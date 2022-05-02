@@ -217,6 +217,7 @@ func (m *Maildir) getMailboxStatus(name string) (*mailbox.Status, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
 	}
+	defer file.Close()
 
 	status := &mailbox.Status{}
 	decoder := json.NewDecoder(file)
