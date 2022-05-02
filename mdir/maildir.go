@@ -144,9 +144,12 @@ func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Rea
 }
 
 func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
+	defer close(messages)
+
 	if m.selected == "" {
 		return lib.ErrNotSelected
 	}
+
 	name := m.selected
 	mbox := maildir.Dir(filepath.Join(m.root, name))
 	keys, err := mbox.Keys()
@@ -181,7 +184,6 @@ func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
 			Size:         uint32(info.Size()),
 		}
 	}
-	close(messages)
 	return nil
 }
 

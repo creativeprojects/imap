@@ -4,8 +4,6 @@ import (
 	"os"
 
 	"github.com/creativeprojects/imap/cfg"
-	"github.com/creativeprojects/imap/mailbox"
-	"github.com/creativeprojects/imap/mdir"
 	"github.com/creativeprojects/imap/term"
 	"github.com/spf13/cobra"
 )
@@ -16,14 +14,6 @@ var rootCmd = &cobra.Command{
 	Long:  "\nIMAP tools: backup, copy, move",
 	Run: func(cmd *cobra.Command, args []string) {
 		// this function needs to be defined
-		backend, err := mdir.New("./maildir")
-		if err != nil {
-			term.Error(err)
-		}
-		err = backend.CreateMailbox(mailbox.Info{Name: "INBOX", Delimiter: "/"})
-		if err != nil {
-			term.Error(err)
-		}
 	},
 }
 

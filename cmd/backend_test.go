@@ -170,6 +170,11 @@ func runTestBackend(t *testing.T, backend Backend) {
 		}
 		createMailbox(t, backend, info)
 		deleteMailbox(t, backend, info)
+		// also deletes the "Path" one if exists (it should on IMAP)
+		_ = backend.DeleteMailbox(mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Path",
+		})
 	})
 
 	t.Run("CreateDeleteMailboxDifferentDelimiter", func(t *testing.T) {
@@ -179,6 +184,11 @@ func runTestBackend(t *testing.T, backend Backend) {
 		}
 		createMailbox(t, backend, info)
 		deleteMailbox(t, backend, info)
+		// also deletes the "Path" one if exists (it should on IMAP)
+		_ = backend.DeleteMailbox(mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Path",
+		})
 	})
 
 	t.Run("SelectMailbox", func(t *testing.T) {
@@ -247,6 +257,77 @@ func runTestBackend(t *testing.T, backend Backend) {
 		// wait until all the messages arrived
 		err := <-done
 		assert.NoError(t, err)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
+	t.Run("AppendTwoMoreMessages", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		for i := 0; i < 2; i++ {
+			body := bytes.NewBufferString(sampleMessage)
+			uid, err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
+			require.NoError(t, err)
+			if backend.SupportMessageID() {
+				assert.NotZero(t, uid)
+			}
+		}
+
+		// Verify the mailbox shows 3 messages
+		status, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+		t.Logf("%v", status)
+		assert.Equal(t, info.Name, status.Name)
+		assert.Equal(t, uint32(3), status.Messages)
+		assert.Equal(t, uint32(0), status.Unseen)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
+	t.Run("FetchThreeMessages", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		_, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+
+		receiver := make(chan *mailbox.Message, 10)
+		done := make(chan error, 1)
+		go func() {
+			done <- backend.FetchMessages(receiver)
+		}()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			count := 0
+			for msg := range receiver {
+				count++
+				assert.NotNil(t, msg)
+				buffer := &bytes.Buffer{}
+				read, err := buffer.ReadFrom(msg.Body)
+				assert.NoError(t, err)
+				msg.Body.Close()
+				assert.Equal(t, int64(len(sampleMessage)), read)
+				if !msg.InternalDate.IsZero() {
+					assert.Equal(t, sampleMessageDate, msg.InternalDate)
+				}
+				assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
+				t.Logf("Received message seq=%d uid=%s size=%d flags=%+v", msg.SeqNum, msg.Uid.String(), read, msg.Flags)
+			}
+			assert.Equal(t, 3, count)
+		}()
+		// wait until all the messages arrived
+		err = <-done
+		assert.NoError(t, err)
+
+		wg.Wait()
 
 		err = backend.UnselectMailbox()
 		assert.NoError(t, err)

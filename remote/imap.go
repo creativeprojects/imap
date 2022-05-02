@@ -186,8 +186,14 @@ func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, bod
 }
 
 func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
+	defer close(messages)
+
+	if i.selected == nil {
+		return lib.ErrNotSelected
+	}
+
 	seqset := new(imap.SeqSet)
-	seqset.AddRange(0, i.selected.Messages)
+	seqset.AddRange(1, i.selected.Messages)
 
 	section := &imap.BodySectionName{Peek: true}
 	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid}
@@ -220,7 +226,6 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 	// will return the error from Fetch when it's finished
 	err := <-done
 	wg.Wait()
-	close(messages)
 	i.log.Print("All IMAP messages received")
 	return err
 }
