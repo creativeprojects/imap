@@ -9,6 +9,7 @@ import (
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/mdir"
+	"github.com/creativeprojects/imap/mem"
 	"github.com/creativeprojects/imap/remote"
 	"github.com/creativeprojects/imap/store"
 )
@@ -39,6 +40,7 @@ var (
 	_ Backend = &remote.Imap{}
 	_ Backend = &store.BoltStore{}
 	_ Backend = &mdir.Maildir{}
+	_ Backend = &mem.Backend{}
 )
 
 func NewBackend(config cfg.Account) (Backend, error) {

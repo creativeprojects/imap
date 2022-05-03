@@ -13,6 +13,7 @@ import (
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/mdir"
+	"github.com/creativeprojects/imap/mem"
 	"github.com/creativeprojects/imap/remote"
 	"github.com/creativeprojects/imap/store"
 	"github.com/emersion/go-imap"
@@ -109,6 +110,19 @@ func TestStoreBackend(t *testing.T) {
 	backend.DebugLogger(&testLogger{t})
 
 	err = prepareLocalBackend(t, backend)
+	require.NoError(t, err)
+
+	runTestBackend(t, backend)
+}
+
+func TestMemoryBackend(t *testing.T) {
+	backend := mem.New()
+
+	defer backend.Close()
+
+	backend.DebugLogger(&testLogger{t})
+
+	err := prepareBackend(backend)
 	require.NoError(t, err)
 
 	runTestBackend(t, backend)
