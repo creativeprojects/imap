@@ -382,6 +382,35 @@ func runTestBackend(t *testing.T, backend Backend) {
 			Name:      "Work",
 		})
 	})
+
+	t.Run("CopyMailbox", func(t *testing.T) {
+		var total uint32 = 34
+		info := mailbox.Info{Name: "Mailbox Copy", Delimiter: "."}
+
+		memBackend := mem.New()
+		memBackend.GenerateFakeEmails(info, total)
+
+		_, err := memBackend.SelectMailbox(info)
+		assert.NoError(t, err)
+
+		progress := &testProgress{}
+		err = copyMessages(memBackend, backend, info, progress)
+		assert.NoError(t, err)
+
+		assert.Equal(t, total, progress.count)
+
+		// Verify the mailbox shows the right number of messages
+		status, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+
+		assert.Equal(t, info.Name, status.Name)
+		assert.Equal(t, total, status.Messages)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+		err = backend.DeleteMailbox(info)
+		assert.NoError(t, err)
+	})
 }
 
 func prepareMaildirBackend(t *testing.T, backend *mdir.Maildir) error {
@@ -458,4 +487,12 @@ func mailboxExists(name string, in []mailbox.Info) bool {
 		}
 	}
 	return false
+}
+
+type testProgress struct {
+	count uint32
+}
+
+func (p *testProgress) Increment() {
+	p.count++
 }

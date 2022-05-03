@@ -43,6 +43,11 @@ func (s *Backend) SupportMessageID() bool {
 func (m *Backend) CreateMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 
+	if _, ok := m.data[name]; ok {
+		// already exists
+		return nil
+	}
+
 	m.data[name] = &memMailbox{
 		uidValidity: lib.NewUID(),
 		messages:    make(map[uint32]*memMessage),
@@ -122,4 +127,15 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 func (m *Backend) UnselectMailbox() error {
 	m.selected = ""
 	return nil
+}
+
+func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32) {
+	_ = m.CreateMailbox(info)
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+
+	var i uint32
+	for i = 1; i <= count; i++ {
+		msg := lib.GenerateEmail("user1@example.com", "user2@example.com", i)
+		m.data[name].newMessage(msg, []string{}, time.Now())
+	}
 }
