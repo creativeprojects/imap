@@ -164,12 +164,10 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 		return nil, err
 	}
 	i.selected = &mailbox.Status{
-		Name:           status.Name,
-		Flags:          status.Flags,
-		PermanentFlags: status.PermanentFlags,
-		Messages:       status.Messages,
-		Unseen:         status.Unseen,
-		UidValidity:    status.UidValidity,
+		Name:        status.Name,
+		Messages:    status.Messages,
+		Unseen:      status.Unseen,
+		UidValidity: status.UidValidity,
 	}
 	return i.selected, nil
 }
