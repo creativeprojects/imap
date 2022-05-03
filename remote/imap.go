@@ -115,9 +115,8 @@ func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 	for m := range mailboxes {
 		i.log.Printf("* %q: %+v (delimiter = %q)", m.Name, m.Attributes, m.Delimiter)
 		info = append(info, mailbox.Info{
-			Attributes: m.Attributes,
-			Delimiter:  m.Delimiter,
-			Name:       m.Name,
+			Delimiter: m.Delimiter,
+			Name:      m.Name,
 		})
 		// sets the delimiter (if not already set)
 		if i.delimiter == "" {

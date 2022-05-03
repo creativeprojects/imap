@@ -68,9 +68,8 @@ func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	}
 	// default status on new mailbox
 	return m.setMailboxStatus(name, mailbox.Status{
-		Name:           name,
-		PermanentFlags: []string{"\\*"},
-		UidValidity:    lib.NewUID(),
+		Name:        name,
+		UidValidity: lib.NewUID(),
 	})
 }
 
@@ -194,6 +193,10 @@ func (m *Maildir) UnselectMailbox() error {
 
 func (m *Maildir) statusFile(name string) string {
 	return filepath.Join(m.root, name+".json")
+}
+
+func (m *Maildir) infoFile() string {
+	return filepath.Join(m.root, ".info.json")
 }
 
 func (m *Maildir) setMailboxStatus(name string, status mailbox.Status) error {

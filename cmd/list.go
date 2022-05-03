@@ -43,21 +43,20 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot list account mailbox: %w", err)
 	}
 	table := pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
-		{"Mailbox", "Messages", "Flags"},
+		{"Mailbox", "Messages"},
 	})
 	for _, mailbox := range mailboxes {
-		var messages, flags string
+		var messages string
 		status, err := backend.SelectMailbox(mailbox)
 		if err == nil {
 			messages = strconv.FormatUint(uint64(status.Messages), 10)
-			flags = displayFlags(status.Flags)
 		}
-		table.Data = append(table.Data, []string{mailbox.Name, messages, flags})
+		table.Data = append(table.Data, []string{mailbox.Name, messages})
 	}
 	return table.Render()
 }
 
-func displayFlags(source []string) string {
+func displayAttributes(source []string) string {
 	flags := make([]string, len(source))
 	for i, flag := range source {
 		flags[i] = strings.TrimPrefix(flag, "\\")

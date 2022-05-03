@@ -68,39 +68,47 @@ func runCopy(cmd *cobra.Command, args []string) error {
 			// it's empty so don't bother
 			continue
 		}
-
 		term.Infof("copying mailbox %s", mbox.Name)
-		err = backendDest.CreateMailbox(mbox)
-		if err != nil {
-			return fmt.Errorf("cannot create mailbox at destination: %w", err)
-		}
-
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		receiver := make(chan *mailbox.Message, 10)
-		done := make(chan error, 1)
-		go func() {
-			done <- backendSource.FetchMessages(receiver)
-		}()
-
-		for msg := range receiver {
-			if pbar != nil {
-				pbar.Increment()
-			}
-			_, err = backendDest.PutMessage(mbox, msg.Flags, msg.InternalDate, msg.Body)
-			msg.Body.Close()
-			if err != nil {
-				term.Errorf("error saving message: %s", err)
-			}
-		}
-		// wait until all the messages arrived
-		err = <-done
-		_ = backendSource.UnselectMailbox()
+		err = copyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}
 		if err != nil {
-			term.Errorf("error loading messages: %s", err)
+			term.Error(err.Error())
 		}
+	}
+	return nil
+}
+
+func copyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser) error {
+	err := backendDest.CreateMailbox(mbox)
+	if err != nil {
+		return fmt.Errorf("cannot create mailbox at destination: %w", err)
+	}
+
+	receiver := make(chan *mailbox.Message, 10)
+	done := make(chan error, 1)
+	go func() {
+		done <- backendSource.FetchMessages(receiver)
+	}()
+
+	for msg := range receiver {
+		if pbar != nil {
+			pbar.Increment()
+		}
+		_, err = backendDest.PutMessage(mbox, msg.Flags, msg.InternalDate, msg.Body)
+		msg.Body.Close()
+		if err != nil {
+			// display error but keep going
+			term.Errorf("error saving message: %s", err)
+		}
+	}
+	// wait until all the messages arrived
+	err = <-done
+	_ = backendSource.UnselectMailbox()
+	if err != nil {
+		return fmt.Errorf("error loading messages: %w", err)
 	}
 	return nil
 }
