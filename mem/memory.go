@@ -2,6 +2,7 @@ package mem
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"time"
 
@@ -89,15 +90,21 @@ func (m *Backend) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	}, nil
 }
 
-func (m *Backend) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
+func (m *Backend) PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	_, ok := m.data[name]
 	if !ok {
 		return mailbox.EmptyMessageID, lib.ErrMailboxNotFound
 	}
 	buffer := &bytes.Buffer{}
-	buffer.ReadFrom(body)
-	uid := m.data[name].newMessage(buffer.Bytes(), flags, date)
+	read, err := buffer.ReadFrom(body)
+	if err != nil {
+		return mailbox.EmptyMessageID, fmt.Errorf("cannot read message source: %w", err)
+	}
+	if props.Size > 0 && read != int64(props.Size) {
+		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
+	}
+	uid := m.data[name].newMessage(buffer.Bytes(), props.Flags, props.InternalDate)
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
@@ -108,16 +115,15 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 		return lib.ErrNotSelected
 	}
 
-	var count uint32
 	for uid, msg := range m.data[m.selected].messages {
-		count++
 		messages <- &mailbox.Message{
-			SeqNum:       count,
-			Flags:        msg.flags,
-			InternalDate: msg.date,
-			Size:         uint32(len(msg.content)),
-			Uid:          mailbox.NewMessageIDFromUint(uid),
-			Body:         io.NopCloser(bytes.NewReader(msg.content)),
+			MessageProperties: mailbox.MessageProperties{
+				Flags:        msg.flags,
+				InternalDate: msg.date,
+				Size:         uint32(len(msg.content)),
+			},
+			Uid:  mailbox.NewMessageIDFromUint(uid),
+			Body: io.NopCloser(bytes.NewReader(msg.content)),
 		}
 	}
 
@@ -129,13 +135,13 @@ func (m *Backend) UnselectMailbox() error {
 	return nil
 }
 
-func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32) {
+func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32, minSize, maxSize int) {
 	_ = m.CreateMailbox(info)
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 
 	var i uint32
 	for i = 1; i <= count; i++ {
-		msg := lib.GenerateEmail("user1@example.com", "user2@example.com", i)
+		msg := lib.GenerateEmail("user1@example.com", "user2@example.com", i, minSize, maxSize)
 		m.data[name].newMessage(msg, []string{}, time.Now())
 	}
 }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
@@ -172,19 +171,23 @@ func (i *Imap) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	return i.selected, nil
 }
 
-func (i *Imap) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
+func (i *Imap) PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
 	buffer := &bytes.Buffer{}
 	read, err := buffer.ReadFrom(body)
 	if err != nil {
 		return mailbox.EmptyMessageID, fmt.Errorf("cannot read message body: %w", err)
 	}
+	if props.Size > 0 && read != int64(props.Size) {
+		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
+	}
 	i.log.Printf("Message body: read %d bytes", read)
+
 	var uid uint32
 	if i.uidplusClient != nil {
-		_, uid, err = i.uidplusClient.Append(name, flags, date, buffer)
+		_, uid, err = i.uidplusClient.Append(name, props.Flags, props.InternalDate, buffer)
 	} else {
-		err = i.client.Append(name, flags, date, buffer)
+		err = i.client.Append(name, props.Flags, props.InternalDate, buffer)
 	}
 	if err != nil {
 		return mailbox.EmptyMessageID, fmt.Errorf("cannot append new message to IMAP server: %w", err)
@@ -203,7 +206,8 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 	seqset.AddRange(1, i.selected.Messages)
 
 	section := &imap.BodySectionName{Peek: true}
-	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid}
+	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid, imap.FetchInternalDate}
+	i.log.Printf("items: %+v", items)
 
 	receiver := make(chan *imap.Message, 10)
 	done := make(chan error, 1)
@@ -219,12 +223,13 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 			i.log.Printf("Received IMAP message seq=%d", msg.SeqNum)
 			// receive all the messages as they get in
 			message := &mailbox.Message{
-				SeqNum:       msg.SeqNum,
-				Flags:        lib.StripRecentFlag(msg.Flags),
-				InternalDate: msg.InternalDate,
-				Size:         msg.Size,
-				Uid:          mailbox.NewMessageIDFromUint(msg.Uid),
-				Body:         io.NopCloser(msg.GetBody(section)),
+				MessageProperties: mailbox.MessageProperties{
+					Flags:        lib.StripRecentFlag(msg.Flags),
+					InternalDate: msg.InternalDate,
+					Size:         msg.Size,
+				},
+				Uid:  mailbox.NewMessageIDFromUint(msg.Uid),
+				Body: io.NopCloser(msg.GetBody(section)),
 			}
 			// and transfer them to the output
 			messages <- message

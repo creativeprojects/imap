@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"compress/zlib"
 	"errors"
 	"fmt"
 	"io"
@@ -20,7 +21,7 @@ const (
 	infoKey         = "info"
 	statusKey       = "status"
 	bodyPrefix      = "body-"
-	flagsPrefix     = "flags-"
+	msgPrefix       = "msg-"
 	versionKey      = "version"
 	boltFileVersion = 1
 )
@@ -210,7 +211,7 @@ func (s *BoltStore) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	return status, nil
 }
 
-func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
+func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error) {
 	var messageID mailbox.MessageID
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(mailboxBucket))
@@ -232,17 +233,32 @@ func (s *BoltStore) PutMessage(info mailbox.Info, flags []string, date time.Time
 		}
 		messageID = mailbox.NewMessageIDFromUint(uint32(uid))
 		buffer := &bytes.Buffer{}
-		read, err := buffer.ReadFrom(body)
+		// read, err := buffer.ReadFrom(body)
+		// \-> use compression instead
+		writer := zlib.NewWriter(buffer)
+		read, err := io.Copy(writer, body)
 		if err != nil {
 			return fmt.Errorf("cannot read message body: %w", err)
+		}
+		err = writer.Close()
+		if err != nil {
+			return fmt.Errorf("error closing zlib writer: %w", err)
+		}
+		if props.Size > 0 && read != int64(props.Size) {
+			return fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
 		}
 		err = mbox.Put(SerializeUID(bodyPrefix, uid), buffer.Bytes())
 		if err != nil {
 			return fmt.Errorf("cannot save message body: %w", err)
 		}
-		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d flags=%+v", name, uid, read, flags)
+		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d flags=%+v", name, uid, read, props.Flags)
 
-		err = storeUID(mbox, flagsPrefix, uid, &flags)
+		props := &msgProps{
+			Flags: props.Flags,
+			Date:  props.InternalDate,
+			Size:  uint32(read),
+		}
+		err = storeUID(mbox, msgPrefix, uid, props)
 		if err != nil {
 			return err
 		}
@@ -273,26 +289,34 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 			return lib.ErrMailboxNotFound
 		}
 
-		var count uint32
 		err = mailboxBucket.ForEach(func(key, value []byte) error {
 			s.log.Printf("* Key %q", string(key))
 			if bytes.HasPrefix(key, []byte(bodyPrefix)) {
-				count++
-				flags := &([]string{})
-				flagsKey := bytes.Replace(key, []byte(bodyPrefix), []byte(flagsPrefix), 1)
-				flagsData := mailboxBucket.Get(flagsKey)
-				if flagsData != nil {
-					flags, err = DeserializeObject[[]string](flagsData)
+				properties := &msgProps{}
+				propsKey := bytes.Replace(key, []byte(bodyPrefix), []byte(msgPrefix), 1)
+				propsData := mailboxBucket.Get(propsKey)
+				if propsData != nil {
+					properties, err = DeserializeObject[msgProps](propsData)
 					if err != nil {
 						return err
 					}
 				}
+				// uncompress data
+				reader, err := zlib.NewReader(bytes.NewReader(value))
+				if err != nil {
+					return err
+				}
+				reader.Close()
 				messages <- &mailbox.Message{
-					SeqNum: count,
-					Uid:    mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
-					Flags:  *flags,
-					Size:   uint32(len(value)),
-					Body:   io.NopCloser(bytes.NewReader(value)),
+					MessageProperties: mailbox.MessageProperties{
+						Flags:        properties.Flags,
+						Size:         properties.Size,
+						Hash:         properties.Hash,
+						InternalDate: properties.Date,
+					},
+					Uid: mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
+					// Body: io.NopCloser(bytes.NewReader(value)),
+					Body: reader,
 				}
 			}
 			return nil

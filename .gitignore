@@ -4,3 +4,4 @@ test.yaml
 /.cache
 /local
 /imap
+/coverage.out

@@ -70,7 +70,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		}
 		term.Infof("copying mailbox %s", mbox.Name)
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		err = copyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
+		err = CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}
@@ -81,7 +81,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func copyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser) error {
+func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser) error {
 	err := backendDest.CreateMailbox(mbox)
 	if err != nil {
 		return fmt.Errorf("cannot create mailbox at destination: %w", err)
@@ -97,8 +97,14 @@ func copyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Pr
 		if pbar != nil {
 			pbar.Increment()
 		}
-		_, err = backendDest.PutMessage(mbox, msg.Flags, msg.InternalDate, msg.Body)
-		msg.Body.Close()
+		props := mailbox.MessageProperties{
+			Flags:        msg.Flags,
+			InternalDate: msg.InternalDate,
+			Size:         msg.Size,
+			Hash:         msg.Hash,
+		}
+		_, err = backendDest.PutMessage(mbox, props, msg.Body)
+		_ = msg.Body.Close()
 		if err != nil {
 			// display error but keep going
 			term.Errorf("error saving message: %s", err)

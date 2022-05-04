@@ -3,24 +3,25 @@ package lib
 import (
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz " +
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 " +
-	",./;'\\ \" []{}<>?:|!@£$%^&*()_+-= " +
-	"\r\n\r\n\r\n "
+const (
+	charset = "abcdefghijklmnopqrstuvwxyz \n" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 \n" +
+		",./;'\\ \" []{}<>?:|!@£$%^&*()_+-= \n"
 
-const template = "From: %s\r\n" +
-	"To: %s\r\n" +
-	"Subject: A little message, just for you\r\n" +
-	"Date: Wed, 11 May 2016 14:31:59 +0000\r\n" +
-	"Message-ID: <%d@localhost/>\r\n" +
-	"Content-Type: text/plain\r\n" +
-	"\r\n%s"
+	template = "From: %s\n" +
+		"To: %s\n" +
+		"Subject: A little message, just for you\n" +
+		"Date: Wed, 11 May 2016 14:31:59 +0000\n" +
+		"Message-ID: <%d@localhost/>\n" +
+		"Content-Type: text/plain\n" +
+		"\n%s"
+)
 
-var seededRand *rand.Rand = rand.New(
-	rand.NewSource(time.Now().UnixMilli()))
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixMilli()))
 
 func stringWithCharset(length int, charset string) string {
 	b := make([]byte, length)
@@ -30,8 +31,10 @@ func stringWithCharset(length int, charset string) string {
 	return string(b)
 }
 
-func GenerateEmail(from, to string, uid uint32) []byte {
-	length := seededRand.Intn(300000)
+func GenerateEmail(from, to string, uid uint32, minSize, maxSize int) []byte {
+	length := seededRand.Intn(maxSize-minSize) + minSize
 	msg := fmt.Sprintf(template, from, to, uid, stringWithCharset(length, charset))
+	// emails are using CRLF line endings
+	msg = strings.ReplaceAll(msg, "\n", "\r\n")
 	return []byte(msg)
 }

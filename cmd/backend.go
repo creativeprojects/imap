@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/creativeprojects/imap/cfg"
 	"github.com/creativeprojects/imap/lib"
@@ -28,7 +27,7 @@ type Backend interface {
 	DeleteMailbox(info mailbox.Info) error
 	// SelectMailbox opens the current mailbox for fetching messages
 	SelectMailbox(info mailbox.Info) (*mailbox.Status, error)
-	PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error)
+	PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error)
 	// FetchMessages needs a mailbox to be selected first
 	FetchMessages(messages chan *mailbox.Message) error
 	// UnselectMailbox after fetching messages

@@ -29,6 +29,11 @@ test: download
 	@echo "[*] $@"
 	$(GOTEST) -v $(TESTS)
 
+coverage:
+	@echo "[*] $@"
+	$(GOTEST) -coverprofile=$(COVERAGE_FILE) $(TESTS)
+	$(GOTOOL) cover -html=$(COVERAGE_FILE)
+
 build: download
 	@echo "[*] $@"
 	$(GOBUILD) -o $(BINARY) -v -ldflags "-X 'main.buildCommit=${BUILD_COMMIT}' -X 'main.buildDate=${BUILD_DATE}' -X 'main.buildBy=make'"

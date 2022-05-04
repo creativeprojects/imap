@@ -34,7 +34,7 @@ var (
 		"Content-Type: text/plain\r\n" +
 		"\r\n" +
 		"Hi there :)"
-	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.Local)
+	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.UTC)
 	sampleMessageFlags = []string{imap.SeenFlag}
 )
 
@@ -71,7 +71,7 @@ func TestImapBackend(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	runTestBackend(t, backend)
+	RunTestBackend(t, backend)
 	err = backend.Close()
 	assert.NoError(t, err)
 
@@ -97,7 +97,7 @@ func TestMaildirBackend(t *testing.T) {
 	err = prepareMaildirBackend(t, backend)
 	require.NoError(t, err)
 
-	runTestBackend(t, backend)
+	RunTestBackend(t, backend)
 }
 
 func TestStoreBackend(t *testing.T) {
@@ -112,7 +112,7 @@ func TestStoreBackend(t *testing.T) {
 	err = prepareLocalBackend(t, backend)
 	require.NoError(t, err)
 
-	runTestBackend(t, backend)
+	RunTestBackend(t, backend)
 }
 
 func TestMemoryBackend(t *testing.T) {
@@ -125,7 +125,7 @@ func TestMemoryBackend(t *testing.T) {
 	err := prepareBackend(backend)
 	require.NoError(t, err)
 
-	runTestBackend(t, backend)
+	RunTestBackend(t, backend)
 }
 
 func TestBackendFromConfig(t *testing.T) {
@@ -152,7 +152,7 @@ func TestBackendFromConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			t.Run(name, func(t *testing.T) {
-				runTestBackend(t, backend)
+				RunTestBackend(t, backend)
 			})
 
 		case cfg.MAILDIR:
@@ -170,7 +170,7 @@ func TestBackendFromConfig(t *testing.T) {
 			require.NoError(t, err)
 
 			t.Run(name, func(t *testing.T) {
-				runTestBackend(t, backend)
+				RunTestBackend(t, backend)
 			})
 
 		case cfg.IMAP:
@@ -185,7 +185,7 @@ func TestBackendFromConfig(t *testing.T) {
 			defer backend.Close()
 
 			t.Run(name, func(t *testing.T) {
-				runTestBackend(t, backend)
+				RunTestBackend(t, backend)
 			})
 		default:
 			t.Errorf("unexpected account type %q", account.Type)
@@ -193,7 +193,7 @@ func TestBackendFromConfig(t *testing.T) {
 	}
 }
 
-func runTestBackend(t *testing.T, backend Backend) {
+func RunTestBackend(t *testing.T, backend Backend) {
 	require.NotNil(t, backend)
 
 	t.Run("ListMailbox", func(t *testing.T) {
@@ -257,8 +257,13 @@ func runTestBackend(t *testing.T, backend Backend) {
 			Delimiter: backend.Delimiter(),
 			Name:      "Work",
 		}
+		props := mailbox.MessageProperties{
+			Flags:        sampleMessageFlags,
+			InternalDate: sampleMessageDate,
+			Size:         uint32(len(sampleMessage)),
+		}
 		body := bytes.NewBufferString(sampleMessage)
-		uid, err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
+		uid, err := backend.PutMessage(info, props, body)
 		require.NoError(t, err)
 		if backend.SupportMessageID() {
 			assert.NotZero(t, uid)
@@ -289,11 +294,12 @@ func runTestBackend(t *testing.T, backend Backend) {
 			assert.NoError(t, err)
 			msg.Body.Close()
 			assert.Equal(t, int64(len(sampleMessage)), read)
-			if !msg.InternalDate.IsZero() {
-				assert.Equal(t, sampleMessageDate, msg.InternalDate)
+			if msg.Size > 0 {
+				assert.Equal(t, read, int64(msg.Size))
 			}
+			assert.True(t, sampleMessageDate.Equal(msg.InternalDate))
 			assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
-			t.Logf("Received message seq=%d uid=%s size=%d flags=%+v", msg.SeqNum, msg.Uid.String(), read, msg.Flags)
+			t.Logf("Received message uid=%s size=%d flags=%+v", msg.Uid.String(), read, msg.Flags)
 		}
 		assert.Equal(t, 1, count)
 
@@ -311,8 +317,13 @@ func runTestBackend(t *testing.T, backend Backend) {
 			Name:      "Work",
 		}
 		for i := 0; i < 2; i++ {
+			props := mailbox.MessageProperties{
+				Flags:        sampleMessageFlags,
+				InternalDate: sampleMessageDate,
+				Size:         uint32(len(sampleMessage)),
+			}
 			body := bytes.NewBufferString(sampleMessage)
-			uid, err := backend.PutMessage(info, sampleMessageFlags, sampleMessageDate, body)
+			uid, err := backend.PutMessage(info, props, body)
 			require.NoError(t, err)
 			if backend.SupportMessageID() {
 				assert.NotZero(t, uid)
@@ -358,11 +369,12 @@ func runTestBackend(t *testing.T, backend Backend) {
 				assert.NoError(t, err)
 				msg.Body.Close()
 				assert.Equal(t, int64(len(sampleMessage)), read)
-				if !msg.InternalDate.IsZero() {
-					assert.Equal(t, sampleMessageDate, msg.InternalDate)
+				if msg.Size > 0 {
+					assert.Equal(t, read, int64(msg.Size))
 				}
+				assert.True(t, sampleMessageDate.Equal(msg.InternalDate))
 				assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
-				t.Logf("Received message seq=%d uid=%s size=%d flags=%+v", msg.SeqNum, msg.Uid.String(), read, msg.Flags)
+				t.Logf("Received message uid=%s size=%d flags=%+v", msg.Uid.String(), read, msg.Flags)
 			}
 			assert.Equal(t, 3, count)
 		}()
@@ -376,6 +388,30 @@ func runTestBackend(t *testing.T, backend Backend) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("AppendMessageWithWrongSize", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		props := mailbox.MessageProperties{
+			Flags:        sampleMessageFlags,
+			InternalDate: sampleMessageDate,
+			Size:         uint32(len(sampleMessage)) - 1,
+		}
+		body := bytes.NewBufferString(sampleMessage)
+		_, err := backend.PutMessage(info, props, body)
+		assert.Error(t, err)
+
+		// Verify the mailbox still shows 3 messages
+		status, err := backend.SelectMailbox(info)
+		assert.NoError(t, err)
+		t.Logf("%v", status)
+		assert.Equal(t, uint32(3), status.Messages)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
 	t.Run("DeleteSimpleMailbox", func(t *testing.T) {
 		deleteMailbox(t, backend, mailbox.Info{
 			Delimiter: backend.Delimiter(),
@@ -384,17 +420,17 @@ func runTestBackend(t *testing.T, backend Backend) {
 	})
 
 	t.Run("CopyMailbox", func(t *testing.T) {
-		var total uint32 = 34
+		var total uint32 = 23
 		info := mailbox.Info{Name: "Mailbox Copy", Delimiter: "."}
 
 		memBackend := mem.New()
-		memBackend.GenerateFakeEmails(info, total)
+		memBackend.GenerateFakeEmails(info, total, 100, 100000)
 
 		_, err := memBackend.SelectMailbox(info)
 		assert.NoError(t, err)
 
 		progress := &testProgress{}
-		err = copyMessages(memBackend, backend, info, progress)
+		err = CopyMessages(memBackend, backend, info, progress)
 		assert.NoError(t, err)
 
 		assert.Equal(t, total, progress.count)
@@ -446,8 +482,13 @@ func prepareBackend(backend Backend) error {
 	if err != nil {
 		return err
 	}
+	props := mailbox.MessageProperties{
+		Flags:        []string{"\\Seen"},
+		InternalDate: time.Now(),
+		Size:         uint32(len(sampleMessage)),
+	}
 	buffer := bytes.NewBufferString(sampleMessage)
-	_, err = backend.PutMessage(info, []string{"\\Seen"}, time.Now(), buffer)
+	_, err = backend.PutMessage(info, props, buffer)
 	if err != nil {
 		return err
 	}

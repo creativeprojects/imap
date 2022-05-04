@@ -103,18 +103,26 @@ func (m *Maildir) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	return m.getMailboxStatus(name)
 }
 
-func (m *Maildir) PutMessage(info mailbox.Info, flags []string, date time.Time, body io.Reader) (mailbox.MessageID, error) {
+func (m *Maildir) PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	mbox := maildir.Dir(filepath.Join(m.root, name))
-	key, copied, err := m.createFromStream(mbox, flags, body)
+	key, copied, err := m.createFromStream(mbox, props.Flags, body)
 	if err != nil {
 		return mailbox.EmptyMessageID, err
+	}
+	if props.Size > 0 && copied != int64(props.Size) {
+		// delete the message
+		filename, err := mbox.Filename(key)
+		if err == nil {
+			_ = os.Remove(filename)
+		}
+		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, copied)
 	}
 	m.log.Printf("Message saved: mailbox=%q key=%q size=%d", name, key, copied)
 
 	filename, err := mbox.Filename(key)
 	if err == nil {
-		_ = os.Chtimes(filename, time.Now(), date)
+		_ = os.Chtimes(filename, time.Now(), props.InternalDate)
 	}
 
 	status, err := m.getMailboxStatus(name)
@@ -155,9 +163,8 @@ func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
 	if err != nil {
 		return err
 	}
-	var count uint32
+
 	for _, key := range keys {
-		count++
 		flags, err := mbox.Flags(key)
 		if err != nil {
 			return err
@@ -175,12 +182,13 @@ func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
 			return err
 		}
 		messages <- &mailbox.Message{
-			SeqNum:       count,
-			Flags:        flagsToStrings(flags),
-			InternalDate: info.ModTime(),
-			Uid:          mailbox.NewMessageIDFromString(key),
-			Body:         file,
-			Size:         uint32(info.Size()),
+			MessageProperties: mailbox.MessageProperties{
+				Flags:        flagsToStrings(flags),
+				InternalDate: info.ModTime(),
+				Size:         uint32(info.Size()),
+			},
+			Uid:  mailbox.NewMessageIDFromString(key),
+			Body: file,
 		}
 	}
 	return nil
