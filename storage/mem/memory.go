@@ -19,18 +19,21 @@ type Backend struct {
 }
 
 func New() *Backend {
+	return NewWithLogger(nil)
+}
+
+func NewWithLogger(logger lib.Logger) *Backend {
+	if logger == nil {
+		logger = &lib.NoLog{}
+	}
 	return &Backend{
 		data: make(map[string]*memMailbox),
-		log:  &lib.NoLog{},
+		log:  logger,
 	}
 }
 
 func (m *Backend) Close() error {
 	return nil
-}
-
-func (m *Backend) DebugLogger(logger lib.Logger) {
-	m.log = logger
 }
 
 func (s *Backend) Delimiter() string {

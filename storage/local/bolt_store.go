@@ -34,6 +34,13 @@ type BoltStore struct {
 }
 
 func NewBoltStore(filename string) (*BoltStore, error) {
+	return NewBoltStoreWithLogger(filename, nil)
+}
+
+func NewBoltStoreWithLogger(filename string, logger lib.Logger) (*BoltStore, error) {
+	if logger == nil {
+		logger = &lib.NoLog{}
+	}
 	options := bolt.DefaultOptions
 	options.Timeout = 10 * time.Second
 
@@ -50,7 +57,7 @@ func NewBoltStore(filename string) (*BoltStore, error) {
 	return &BoltStore{
 		dbFile: filename,
 		db:     db,
-		log:    &lib.NoLog{},
+		log:    logger,
 	}, nil
 }
 
@@ -87,10 +94,6 @@ func (s *BoltStore) Init() error {
 
 func (s *BoltStore) Close() error {
 	return s.db.Close()
-}
-
-func (m *BoltStore) DebugLogger(logger lib.Logger) {
-	m.log = logger
 }
 
 func (s *BoltStore) CreateMailbox(info mailbox.Info) error {

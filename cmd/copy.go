@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/creativeprojects/imap/storage"
 	"github.com/creativeprojects/imap/term"
@@ -33,12 +32,9 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	if !ok {
 		return fmt.Errorf("source account not found: %s", source)
 	}
-	backendSource, err := NewBackend(accountSource)
+	backendSource, err := NewBackend(accountSource, nil)
 	if err != nil {
 		return fmt.Errorf("cannot open source backend: %w", err)
-	}
-	if global.verbose {
-		backendSource.DebugLogger(log.Default())
 	}
 
 	destination := args[1]
@@ -46,12 +42,9 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	if !ok {
 		return fmt.Errorf("destination account not found: %s", destination)
 	}
-	backendDest, err := NewBackend(accountDest)
+	backendDest, err := NewBackend(accountDest, nil)
 	if err != nil {
 		return fmt.Errorf("cannot open destination backend: %w", err)
-	}
-	if global.verbose {
-		backendDest.DebugLogger(log.Default())
 	}
 
 	mailboxes, err := backendSource.ListMailbox()

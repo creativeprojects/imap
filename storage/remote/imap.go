@@ -87,10 +87,6 @@ func (i *Imap) Close() error {
 	return i.client.Logout()
 }
 
-func (i *Imap) DebugLogger(logger lib.Logger) {
-	i.log = logger
-}
-
 func (i *Imap) Delimiter() string {
 	if i.delimiter == "" {
 		_, _ = i.ListMailbox()

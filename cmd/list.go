@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -30,12 +29,9 @@ func runList(cmd *cobra.Command, args []string) error {
 	if !ok {
 		return fmt.Errorf("account not found: %s", accountName)
 	}
-	backend, err := NewBackend(account)
+	backend, err := NewBackend(account, nil)
 	if err != nil {
 		return fmt.Errorf("cannot open backend: %w", err)
-	}
-	if global.verbose {
-		backend.DebugLogger(log.Default())
 	}
 
 	mailboxes, err := backend.ListMailbox()

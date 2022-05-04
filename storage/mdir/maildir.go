@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -24,22 +25,28 @@ type Maildir struct {
 }
 
 func New(root string) (*Maildir, error) {
+	return NewWithLogger(root, nil)
+}
+
+func NewWithLogger(root string, logger lib.Logger) (*Maildir, error) {
+	if runtime.GOOS == "windows" {
+		return nil, errors.New("maildir is not supported on Windows")
+	}
+	if logger == nil {
+		logger = &lib.NoLog{}
+	}
 	err := os.MkdirAll(root, 0700)
 	if err != nil {
 		return nil, err
 	}
 	return &Maildir{
 		root: root,
-		log:  &lib.NoLog{},
+		log:  logger,
 	}, nil
 }
 
 func (m *Maildir) Close() error {
 	return nil
-}
-
-func (m *Maildir) DebugLogger(logger lib.Logger) {
-	m.log = logger
 }
 
 func (m *Maildir) Root() string {
