@@ -1,4 +1,4 @@
-package cmd
+package storage
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"github.com/creativeprojects/imap/mdir"
 	"github.com/creativeprojects/imap/mem"
 	"github.com/creativeprojects/imap/remote"
-	"github.com/creativeprojects/imap/store"
+	"github.com/creativeprojects/imap/storage/local"
 	"github.com/emersion/go-imap"
 	compress "github.com/emersion/go-imap-compress"
 	"github.com/emersion/go-imap/backend/memory"
@@ -102,7 +102,7 @@ func TestMaildirBackend(t *testing.T) {
 
 func TestStoreBackend(t *testing.T) {
 	dir := t.TempDir()
-	backend, err := store.NewBoltStore(filepath.Join(dir, "store.db"))
+	backend, err := local.NewBoltStore(filepath.Join(dir, "store.db"))
 	require.NoError(t, err)
 
 	defer backend.Close()
@@ -142,7 +142,7 @@ func TestBackendFromConfig(t *testing.T) {
 	for name, account := range config.Accounts {
 		switch account.Type {
 		case cfg.LOCAL:
-			backend, err := store.NewBoltStore(account.File)
+			backend, err := local.NewBoltStore(account.File)
 			require.NoError(t, err)
 			defer backend.Close()
 
@@ -455,7 +455,7 @@ func prepareMaildirBackend(t *testing.T, backend *mdir.Maildir) error {
 	return prepareBackend(backend)
 }
 
-func prepareLocalBackend(t *testing.T, backend *store.BoltStore) error {
+func prepareLocalBackend(t *testing.T, backend *local.BoltStore) error {
 	t.Helper()
 	backend.DebugLogger(&testLogger{t})
 	err := backend.Init()

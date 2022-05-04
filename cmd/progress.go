@@ -2,10 +2,6 @@ package cmd
 
 import "github.com/pterm/pterm"
 
-type Progresser interface {
-	Increment()
-}
-
 type progresser struct {
 	pbar *pterm.ProgressbarPrinter
 }
