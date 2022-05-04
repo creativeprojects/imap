@@ -2,8 +2,10 @@ package mem
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"io"
+	"runtime"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -33,6 +35,8 @@ func NewWithLogger(logger lib.Logger) *Backend {
 }
 
 func (m *Backend) Close() error {
+	m.data = make(map[string]*memMailbox)
+	runtime.GC()
 	return nil
 }
 
@@ -99,15 +103,17 @@ func (m *Backend) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 	if !ok {
 		return mailbox.EmptyMessageID, lib.ErrMailboxNotFound
 	}
+	hasher := sha256.New()
+	tee := io.TeeReader(body, hasher)
 	buffer := &bytes.Buffer{}
-	read, err := buffer.ReadFrom(body)
+	read, err := buffer.ReadFrom(tee)
 	if err != nil {
 		return mailbox.EmptyMessageID, fmt.Errorf("cannot read message source: %w", err)
 	}
 	if props.Size > 0 && read != int64(props.Size) {
 		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
 	}
-	uid := m.data[name].newMessage(buffer.Bytes(), props.Flags, props.InternalDate)
+	uid := m.data[name].newMessage(buffer.Bytes(), props.Flags, props.InternalDate, hasher.Sum(nil))
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
@@ -124,6 +130,7 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 				Flags:        msg.flags,
 				InternalDate: msg.date,
 				Size:         uint32(len(msg.content)),
+				Hash:         msg.hash,
 			},
 			Uid:  mailbox.NewMessageIDFromUint(uid),
 			Body: io.NopCloser(bytes.NewReader(msg.content)),
@@ -145,6 +152,7 @@ func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32, minSize, m
 	var i uint32
 	for i = 1; i <= count; i++ {
 		msg := lib.GenerateEmail("user1@example.com", "user2@example.com", i, minSize, maxSize)
-		m.data[name].newMessage(msg, []string{}, time.Now())
+		hasher := sha256.New()
+		m.data[name].newMessage(msg, []string{}, time.Now(), hasher.Sum(msg))
 	}
 }

@@ -1,0 +1,17 @@
+---
+accounts:
+
+  imap-user:
+    type: imap
+    serverURL: localhost:993
+    username: user@example.com
+    password: pass
+    skipTLSverification: true
+
+  maildir-test:
+    type: maildir
+    root: ./maildir-test
+
+  local-test:
+    type: local
+    file: ./local/test.db

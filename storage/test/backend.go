@@ -2,6 +2,7 @@ package test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"sync"
 	"testing"
 	"time"
@@ -25,7 +26,14 @@ var (
 		"Hi there :)"
 	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.UTC)
 	sampleMessageFlags = []string{imap.SeenFlag}
+	sampleMessageHash  []byte
 )
+
+func init() {
+	hasher := sha256.New()
+	hasher.Write([]byte(sampleMessage))
+	sampleMessageHash = hasher.Sum(nil)
+}
 
 // RunTestsOnBackend is the unit tests runner called by the concrete implementations of storage.Backend
 func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
@@ -144,6 +152,9 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 			assert.Equal(t, int64(len(sampleMessage)), read)
 			if msg.Size > 0 {
 				assert.Equal(t, read, int64(msg.Size))
+			}
+			if len(msg.Hash) > 0 {
+				assert.Equal(t, sampleMessageHash, msg.Hash)
 			}
 			assert.True(t, sampleMessageDate.Equal(msg.InternalDate))
 			assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)
