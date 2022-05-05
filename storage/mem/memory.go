@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -18,6 +19,7 @@ type Backend struct {
 	data     map[string]*memMailbox
 	log      lib.Logger
 	selected string
+	history  []mailbox.HistoryAction
 }
 
 func New() *Backend {
@@ -143,6 +145,24 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 func (m *Backend) UnselectMailbox() error {
 	m.selected = ""
 	return nil
+}
+
+func (m *Backend) AddToHistory(actions ...mailbox.HistoryAction) error {
+	if m.history == nil {
+		m.history = make([]mailbox.HistoryAction, 0, len(actions))
+	}
+	m.history = append(m.history, actions...)
+	return nil
+}
+
+func (m *Backend) GetHistory() (*mailbox.History, error) {
+	sort.SliceStable(m.history, func(i, j int) bool {
+		return m.history[i].Date.Before(m.history[j].Date)
+	})
+
+	return &mailbox.History{
+		Actions: m.history,
+	}, nil
 }
 
 func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32, minSize, maxSize int) {

@@ -1,6 +1,10 @@
 package mailbox
 
-import "strconv"
+import (
+	"encoding/json"
+	"strconv"
+	"strings"
+)
 
 var (
 	EmptyMessageID MessageID
@@ -48,4 +52,44 @@ func (i MessageID) String() string {
 		return strconv.FormatUint(uint64(i.uid), 10)
 	}
 	return i.key
+}
+
+func (i MessageID) MarshalText() ([]byte, error) {
+	return []byte(i.String()), nil
+}
+
+func (i *MessageID) UnmarshalText(text []byte) error {
+	str := string(text)
+	value, err := strconv.ParseUint(str, 10, 32)
+	if err != nil {
+		// keep it as a string
+		i.key = str
+		return nil
+	}
+	i.uid = uint32(value)
+	return nil
+}
+
+func (i MessageID) MarshalJSON() ([]byte, error) {
+	if i.IsUint() {
+		return json.Marshal(i.uid)
+	}
+	return json.Marshal(i.key)
+}
+
+func (i *MessageID) UnmarshalJSON(text []byte) error {
+	str := string(text)
+	if strings.HasPrefix(str, "\"") && strings.HasSuffix(str, "\"") {
+		// keep it as a string
+		i.key = strings.Trim(str, "\"")
+		return nil
+	}
+	value, err := strconv.ParseUint(str, 10, 32)
+	if err != nil {
+		// keep it as a string
+		i.key = str
+		return nil
+	}
+	i.uid = uint32(value)
+	return nil
 }

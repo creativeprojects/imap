@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -206,12 +207,56 @@ func (m *Maildir) UnselectMailbox() error {
 	return nil
 }
 
+func (m *Maildir) AddToHistory(actions ...mailbox.HistoryAction) error {
+	history, err := m.GetHistory()
+	if err != nil {
+		// just create a new file instead of failing
+		history = &mailbox.History{
+			Actions: make([]mailbox.HistoryAction, 0),
+		}
+	}
+	history.Actions = append(history.Actions, actions...)
+
+	file, err := os.Create(m.historyFile())
+	if err != nil {
+		return fmt.Errorf("cannot save history: %w", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(history)
+	if err != nil {
+		return fmt.Errorf("cannot encore history: %w", err)
+	}
+	return nil
+}
+
+func (m *Maildir) GetHistory() (*mailbox.History, error) {
+	history := &mailbox.History{}
+	file, err := os.Open(m.historyFile())
+	if err != nil {
+		return nil, fmt.Errorf("cannot open history file: %w", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(history)
+	if err != nil {
+		return nil, fmt.Errorf("error reading history file: %w", err)
+	}
+
+	sort.SliceStable(history.Actions, func(i, j int) bool {
+		return history.Actions[i].Date.Before(history.Actions[j].Date)
+	})
+	return history, nil
+}
+
 func (m *Maildir) statusFile(name string) string {
 	return filepath.Join(m.root, name+".json")
 }
 
-func (m *Maildir) infoFile() string {
-	return filepath.Join(m.root, ".info.json")
+func (m *Maildir) historyFile() string {
+	return filepath.Join(m.root, ".history.json")
 }
 
 func (m *Maildir) setMailboxStatus(name string, status mailbox.Status) error {

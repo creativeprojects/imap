@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/storage"
 	"github.com/creativeprojects/imap/term"
 	"github.com/pterm/pterm"
@@ -52,6 +54,8 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot list source account mailbox: %w", err)
 	}
 
+	actions := make([]mailbox.HistoryAction, 0)
+
 	for _, mbox := range mailboxes {
 		status, err := backendSource.SelectMailbox(mbox)
 		if err != nil {
@@ -63,10 +67,27 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		}
 		term.Infof("copying mailbox %s", mbox.Name)
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		err = storage.CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
+		entries, err := storage.CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}
+		if err != nil {
+			term.Error(err.Error())
+		}
+		if len(entries) > 0 {
+			actions = append(actions, mailbox.HistoryAction{
+				SourceAccountTag: mailbox.AccountTag(accountSource.ServerURL, accountSource.Username),
+				Date:             time.Now(),
+				Action:           mailbox.ActionCopy,
+				Mailbox:          mbox.Name,
+				UidValidity:      status.UidValidity,
+				Entries:          entries,
+			})
+		}
+	}
+
+	if len(actions) > 0 {
+		err = backendDest.AddToHistory(actions...)
 		if err != nil {
 			term.Error(err.Error())
 		}

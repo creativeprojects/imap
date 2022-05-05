@@ -186,10 +186,11 @@ func RunIntegrationTestsOnBackend(t *testing.T, backend Backend) {
 		assert.NoError(t, err)
 
 		progress := &testProgress{}
-		err = CopyMessages(memBackend, backend, info, progress)
+		entries, err := CopyMessages(memBackend, backend, info, progress)
 		assert.NoError(t, err)
 
 		assert.Equal(t, total, progress.count)
+		assert.Equal(t, int(total), len(entries))
 
 		// Verify the mailbox shows the right number of messages
 		status, err := backend.SelectMailbox(info)

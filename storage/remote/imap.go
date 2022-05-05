@@ -242,3 +242,11 @@ func (i *Imap) UnselectMailbox() error {
 	i.selected = nil
 	return i.client.Unselect()
 }
+
+func (i *Imap) AddToHistory(actions ...mailbox.HistoryAction) error {
+	return nil
+}
+
+func (i *Imap) GetHistory() (*mailbox.History, error) {
+	return nil, nil
+}

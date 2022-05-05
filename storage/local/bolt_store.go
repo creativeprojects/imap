@@ -337,6 +337,14 @@ func (s *BoltStore) UnselectMailbox() error {
 	return nil
 }
 
+func (s *BoltStore) AddToHistory(actions ...mailbox.HistoryAction) error {
+	return nil
+}
+
+func (s *BoltStore) GetHistory() (*mailbox.History, error) {
+	return nil, nil
+}
+
 func (s *BoltStore) Backup(filename string) error {
 	err := s.db.View(func(tx *bolt.Tx) error {
 		return tx.CopyFile(filename, 0644)
