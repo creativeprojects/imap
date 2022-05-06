@@ -3,6 +3,10 @@ package mailbox
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+	"sort"
 	"time"
 )
 
@@ -35,3 +39,40 @@ func AccountTag(serverURL, username string) string {
 const (
 	ActionCopy = "COPY"
 )
+
+func GetHistoryFromFile(filename string) (*History, error) {
+	history := &History{}
+	file, err := os.Open(filename)
+	if err != nil {
+		// return nil, fmt.Errorf("cannot open history file: %w", err)
+		// return an empty history instead
+		return history, nil
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(history)
+	if err != nil {
+		return nil, fmt.Errorf("error reading history file: %w", err)
+	}
+
+	sort.SliceStable(history.Actions, func(i, j int) bool {
+		return history.Actions[i].Date.Before(history.Actions[j].Date)
+	})
+	return history, nil
+}
+
+func SaveHistoryToFile(filename string, history *History) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("cannot save history: %w", err)
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(history)
+	if err != nil {
+		return fmt.Errorf("cannot encode history: %w", err)
+	}
+	return nil
+}

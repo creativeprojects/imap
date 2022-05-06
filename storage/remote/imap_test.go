@@ -43,6 +43,7 @@ func TestImapBackend(t *testing.T) {
 		Username:  "username",
 		Password:  "password",
 		NoTLS:     true,
+		CacheDir:  t.TempDir(),
 	})
 	assert.NoError(t, err)
 

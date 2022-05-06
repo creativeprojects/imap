@@ -1,6 +1,8 @@
 package mailbox
 
 import (
+	"bytes"
+	"encoding/gob"
 	"encoding/json"
 	"strconv"
 	"strings"
@@ -91,5 +93,42 @@ func (i *MessageID) UnmarshalJSON(text []byte) error {
 		return nil
 	}
 	i.uid = uint32(value)
+	return nil
+}
+
+func (i MessageID) MarshalBinary() ([]byte, error) {
+	b := &bytes.Buffer{}
+	encoder := gob.NewEncoder(b)
+	if i.IsUint() {
+		str := strconv.FormatUint(uint64(i.uid), 10)
+		err := encoder.Encode(&str)
+		if err != nil {
+			return nil, err
+		}
+		return b.Bytes(), nil
+	}
+	err := encoder.Encode(i.key)
+	if err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+// UnmarshalBinary modifies the receiver so it must take a pointer receiver.
+func (i *MessageID) UnmarshalBinary(data []byte) error {
+	b := bytes.NewBuffer(data)
+	decoder := gob.NewDecoder(b)
+	var value string
+	err := decoder.Decode(&value)
+	if err != nil {
+		return err
+	}
+	uid, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		// keep it as a string
+		i.key = value
+		return nil
+	}
+	i.uid = uint32(uid)
 	return nil
 }

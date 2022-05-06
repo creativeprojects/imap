@@ -90,6 +90,18 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		})
 	})
 
+	t.Run("SelectMailboxDoesNotExist", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "No mailbox at that name",
+		}
+		status, err := backend.SelectMailbox(info)
+		assert.Nil(t, status)
+		require.Error(t, err)
+		// IMAP doesn't have a specific error (it's up to the server implementation)
+		// assert.ErrorIs(t, err, lib.ErrMailboxNotFound)
+	})
+
 	t.Run("SelectMailbox", func(t *testing.T) {
 		info := mailbox.Info{
 			Delimiter: backend.Delimiter(),
@@ -279,6 +291,56 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 
 		err = backend.UnselectMailbox()
 		assert.NoError(t, err)
+	})
+
+	t.Run("StoreOneAction", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		action := mailbox.HistoryAction{
+			SourceAccountTag: "tag",
+			Date:             time.Now(),
+			Action:           "TEST",
+			UidValidity:      123,
+			Entries: []mailbox.HistoryEntry{
+				{
+					SourceID:  mailbox.NewMessageIDFromUint(1),
+					MessageID: mailbox.NewMessageIDFromString("c11"),
+				},
+			},
+		}
+
+		err := backend.AddToHistory(info, action)
+		assert.NoError(t, err)
+	})
+
+	t.Run("LoadHistoryFromEmptyMailbox", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "INBOX",
+		}
+		history, err := backend.GetHistory(info)
+		require.NoError(t, err)
+		assert.NotNil(t, history)
+		assert.Empty(t, history.Actions)
+	})
+
+	t.Run("LoadHistory", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		history, err := backend.GetHistory(info)
+		require.NoError(t, err)
+		require.NotNil(t, history)
+		require.Len(t, history.Actions, 1)
+		assert.Equal(t, "TEST", history.Actions[0].Action)
+		assert.Equal(t, "tag", history.Actions[0].SourceAccountTag)
+		assert.Equal(t, uint32(123), history.Actions[0].UidValidity)
+		require.Len(t, history.Actions[0].Entries, 1)
+		assert.Equal(t, uint32(1), history.Actions[0].Entries[0].SourceID.AsUint())
+		assert.Equal(t, "c11", history.Actions[0].Entries[0].MessageID.AsString())
 	})
 
 	t.Run("DeleteSimpleMailbox", func(t *testing.T) {

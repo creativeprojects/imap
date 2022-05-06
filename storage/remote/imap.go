@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/creativeprojects/imap/lib"
@@ -19,6 +21,7 @@ type Config struct {
 	ServerURL           string
 	Username            string
 	Password            string
+	CacheDir            string
 	DebugLogger         lib.Logger
 	NoTLS               bool
 	SkipTLSVerification bool
@@ -30,6 +33,8 @@ type Imap struct {
 	log           lib.Logger
 	delimiter     string
 	selected      *mailbox.Status
+	tag           string
+	cacheDir      string
 }
 
 func NewImap(cfg Config) (*Imap, error) {
@@ -75,10 +80,19 @@ func NewImap(cfg Config) (*Imap, error) {
 		uidExt = nil
 	}
 
+	// cache dir
+	cacheDir := cfg.CacheDir
+	if cacheDir == "" {
+		wd, _ := os.Getwd()
+		cacheDir = filepath.Join(wd, ".cache")
+	}
+
 	return &Imap{
 		client:        imapClient,
 		uidplusClient: uidExt,
 		log:           log,
+		tag:           mailbox.AccountTag(cfg.ServerURL, cfg.Username),
+		cacheDir:      cacheDir,
 	}, nil
 }
 
@@ -177,17 +191,24 @@ func (i *Imap) PutMessage(info mailbox.Info, props mailbox.MessageProperties, bo
 	if props.Size > 0 && read != int64(props.Size) {
 		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
 	}
-	i.log.Printf("Message body: read %d bytes", read)
+
+	// IMAP server cannot accept the recent flag
+	flags := lib.StripRecentFlag(props.Flags)
 
 	var uid uint32
 	if i.uidplusClient != nil {
-		_, uid, err = i.uidplusClient.Append(name, props.Flags, props.InternalDate, buffer)
+		_, uid, err = i.uidplusClient.Append(name, flags, props.InternalDate, buffer)
 	} else {
-		err = i.client.Append(name, props.Flags, props.InternalDate, buffer)
+		err = i.client.Append(name, flags, props.InternalDate, buffer)
 	}
 	if err != nil {
-		return mailbox.EmptyMessageID, fmt.Errorf("cannot append new message to IMAP server: %w", err)
+		return mailbox.EmptyMessageID,
+			fmt.Errorf("cannot append new message to IMAP server (mailbox=%q size=%d flags=%v): %w",
+				name, read, flags, err,
+			)
 	}
+	i.log.Printf("Message saved: mailbox=%q uid=%v size=%d bytes flags=%v", name, uid, read, flags)
+
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
@@ -244,9 +265,26 @@ func (i *Imap) UnselectMailbox() error {
 }
 
 func (i *Imap) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error {
-	return nil
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
+	history, err := i.GetHistory(info)
+	if err != nil {
+		// just create a new file instead of failing
+		history = &mailbox.History{
+			Actions: make([]mailbox.HistoryAction, 0),
+		}
+	}
+	history.Actions = append(history.Actions, actions...)
+
+	return mailbox.SaveHistoryToFile(i.historyFile(name), history)
 }
 
 func (i *Imap) GetHistory(info mailbox.Info) (*mailbox.History, error) {
-	return nil, nil
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, i.Delimiter())
+	return mailbox.GetHistoryFromFile(i.historyFile(name))
+}
+
+func (i *Imap) historyFile(name string) string {
+	filename := filepath.Join(i.cacheDir, i.tag)
+	_ = os.MkdirAll(filename, 0700)
+	return filepath.Join(filename, name+".history.json")
 }

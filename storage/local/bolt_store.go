@@ -20,6 +20,7 @@ const (
 	mailboxBucket   = "mailbox"
 	infoKey         = "info"
 	statusKey       = "status"
+	historyKey      = "history"
 	bodyPrefix      = "body-"
 	msgPrefix       = "msg-"
 	versionKey      = "version"
@@ -338,11 +339,69 @@ func (s *BoltStore) UnselectMailbox() error {
 }
 
 func (s *BoltStore) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error {
+	// Start the transaction.
+	tx, err := s.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Setup the mailbox bucket.
+	root, err := tx.CreateBucketIfNotExists([]byte(mailboxBucket))
+	if err != nil {
+		return err
+	}
+
+	info = mailbox.ChangeDelimiter(info, s.Delimiter())
+
+	bucket, err := root.CreateBucketIfNotExists([]byte(info.Name))
+	if err != nil {
+		return err
+	}
+
+	history, err := getMailboxHistory(bucket)
+	if err != nil {
+		history = &mailbox.History{}
+	}
+	history.Actions = append(history.Actions, actions...)
+
+	err = setMailboxHistory(bucket, *history)
+	if err != nil {
+		return err
+	}
+
+	// Commit the transaction.
+	if err := tx.Commit(); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (s *BoltStore) GetHistory(info mailbox.Info) (*mailbox.History, error) {
-	return nil, nil
+	var history *mailbox.History
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, s.Delimiter())
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		var err error
+
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		mailboxBucket := bucket.Bucket([]byte(name))
+		if mailboxBucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		history, err = getMailboxHistory(mailboxBucket)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return history, nil
 }
 
 func (s *BoltStore) Backup(filename string) error {
@@ -405,6 +464,33 @@ func getMailboxStatus(bucket *bolt.Bucket) (*mailbox.Status, error) {
 		return nil, err
 	}
 	return info, nil
+}
+
+func setMailboxHistory(bucket *bolt.Bucket, history mailbox.History) error {
+	data, err := SerializeObject(&history)
+	if err != nil {
+		return err
+	}
+
+	err = bucket.Put([]byte(historyKey), data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getMailboxHistory(bucket *bolt.Bucket) (*mailbox.History, error) {
+	data := bucket.Get([]byte(historyKey))
+	if data == nil {
+		// return empty history instead of an error
+		return &mailbox.History{}, nil
+	}
+	history, err := DeserializeObject[mailbox.History](data)
+	if err != nil {
+		return nil, err
+	}
+	return history, nil
 }
 
 func storeUID[T any](bucket *bolt.Bucket, prefix string, uid uint64, data *T) error {

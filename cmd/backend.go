@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/creativeprojects/imap/cfg"
 	"github.com/creativeprojects/imap/lib"
@@ -14,11 +16,13 @@ import (
 func NewBackend(config cfg.Account, logger lib.Logger) (storage.Backend, error) {
 	switch config.Type {
 	case cfg.IMAP:
+		wd, _ := os.Getwd()
 		return remote.NewImap(remote.Config{
 			ServerURL:           config.ServerURL,
 			Username:            config.Username,
 			Password:            config.Password,
 			SkipTLSVerification: config.SkipTLSVerification,
+			CacheDir:            filepath.Join(wd, ".cache"),
 		})
 	case cfg.LOCAL:
 		return local.NewBoltStoreWithLogger(config.File, logger)

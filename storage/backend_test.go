@@ -65,6 +65,7 @@ func TestImapBackend(t *testing.T) {
 		Username:    "username",
 		Password:    "password",
 		NoTLS:       true,
+		CacheDir:    t.TempDir(),
 		DebugLogger: &testLogger{t},
 	})
 	assert.NoError(t, err)
@@ -158,6 +159,7 @@ func TestBackendFromConfig(t *testing.T) {
 				Username:            account.Username,
 				Password:            account.Password,
 				SkipTLSVerification: account.SkipTLSVerification,
+				CacheDir:            t.TempDir(),
 				DebugLogger:         &testLogger{t},
 			})
 			require.NoError(t, err)

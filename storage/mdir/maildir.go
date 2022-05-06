@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
@@ -113,6 +112,9 @@ func (m *Maildir) DeleteMailbox(info mailbox.Info) error {
 
 func (m *Maildir) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, m.Delimiter())
+	if !m.mailboxExists(name) {
+		return nil, lib.ErrMailboxNotFound
+	}
 	m.selected = name
 	return m.getMailboxStatus(name)
 }
@@ -224,39 +226,23 @@ func (m *Maildir) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryActi
 	}
 	history.Actions = append(history.Actions, actions...)
 
-	file, err := os.Create(m.historyFile(name))
-	if err != nil {
-		return fmt.Errorf("cannot save history: %w", err)
-	}
-	defer file.Close()
-
-	encoder := json.NewEncoder(file)
-	err = encoder.Encode(history)
-	if err != nil {
-		return fmt.Errorf("cannot encode history: %w", err)
-	}
-	return nil
+	return mailbox.SaveHistoryToFile(m.historyFile(name), history)
 }
 
 func (m *Maildir) GetHistory(info mailbox.Info) (*mailbox.History, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
-	history := &mailbox.History{}
-	file, err := os.Open(m.historyFile(name))
-	if err != nil {
-		return nil, fmt.Errorf("cannot open history file: %w", err)
+	if !m.mailboxExists(name) {
+		return nil, lib.ErrMailboxNotFound
 	}
-	defer file.Close()
+	return mailbox.GetHistoryFromFile(m.historyFile(name))
+}
 
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(history)
-	if err != nil {
-		return nil, fmt.Errorf("error reading history file: %w", err)
+func (m *Maildir) mailboxExists(name string) bool {
+	stat, err := os.Stat(filepath.Join(m.root, name))
+	if errors.Is(err, os.ErrNotExist) {
+		return false
 	}
-
-	sort.SliceStable(history.Actions, func(i, j int) bool {
-		return history.Actions[i].Date.Before(history.Actions[j].Date)
-	})
-	return history, nil
+	return stat.IsDir()
 }
 
 func (m *Maildir) statusFile(name string) string {
