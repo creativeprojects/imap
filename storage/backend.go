@@ -23,6 +23,6 @@ type Backend interface {
 	FetchMessages(messages chan *mailbox.Message) error
 	// UnselectMailbox after fetching messages
 	UnselectMailbox() error
-	AddToHistory(actions ...mailbox.HistoryAction) error
-	GetHistory() (*mailbox.History, error)
+	AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error
+	GetHistory(info mailbox.Info) (*mailbox.History, error)
 }

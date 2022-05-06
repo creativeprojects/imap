@@ -14,7 +14,6 @@ type HistoryAction struct {
 	SourceAccountTag string
 	Date             time.Time
 	Action           string
-	Mailbox          string
 	UidValidity      uint32
 	Entries          []HistoryEntry
 }

@@ -337,11 +337,11 @@ func (s *BoltStore) UnselectMailbox() error {
 	return nil
 }
 
-func (s *BoltStore) AddToHistory(actions ...mailbox.HistoryAction) error {
+func (s *BoltStore) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error {
 	return nil
 }
 
-func (s *BoltStore) GetHistory() (*mailbox.History, error) {
+func (s *BoltStore) GetHistory(info mailbox.Info) (*mailbox.History, error) {
 	return nil, nil
 }
 

@@ -54,8 +54,6 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot list source account mailbox: %w", err)
 	}
 
-	actions := make([]mailbox.HistoryAction, 0)
-
 	for _, mbox := range mailboxes {
 		status, err := backendSource.SelectMailbox(mbox)
 		if err != nil {
@@ -75,21 +73,17 @@ func runCopy(cmd *cobra.Command, args []string) error {
 			term.Error(err.Error())
 		}
 		if len(entries) > 0 {
-			actions = append(actions, mailbox.HistoryAction{
+			action := mailbox.HistoryAction{
 				SourceAccountTag: mailbox.AccountTag(accountSource.ServerURL, accountSource.Username),
 				Date:             time.Now(),
 				Action:           mailbox.ActionCopy,
-				Mailbox:          mbox.Name,
 				UidValidity:      status.UidValidity,
 				Entries:          entries,
-			})
-		}
-	}
-
-	if len(actions) > 0 {
-		err = backendDest.AddToHistory(actions...)
-		if err != nil {
-			term.Error(err.Error())
+			}
+			err = backendDest.AddToHistory(mbox, action)
+			if err != nil {
+				term.Error(err.Error())
+			}
 		}
 	}
 	return nil

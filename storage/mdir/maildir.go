@@ -75,10 +75,15 @@ func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 		return err
 	}
 	// default status on new mailbox
-	return m.setMailboxStatus(name, mailbox.Status{
+	err = m.setMailboxStatus(name, mailbox.Status{
 		Name:        name,
 		UidValidity: lib.NewUID(),
 	})
+	if err != nil {
+		return err
+	}
+	// and sets an empty history
+	return m.AddToHistory(info)
 }
 
 func (m *Maildir) ListMailbox() ([]mailbox.Info, error) {
@@ -102,6 +107,7 @@ func (m *Maildir) ListMailbox() ([]mailbox.Info, error) {
 func (m *Maildir) DeleteMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	_ = os.Remove(m.statusFile(name))
+	_ = os.Remove(m.historyFile(name))
 	return os.RemoveAll(filepath.Join(m.root, name))
 }
 
@@ -207,8 +213,9 @@ func (m *Maildir) UnselectMailbox() error {
 	return nil
 }
 
-func (m *Maildir) AddToHistory(actions ...mailbox.HistoryAction) error {
-	history, err := m.GetHistory()
+func (m *Maildir) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+	history, err := m.GetHistory(info)
 	if err != nil {
 		// just create a new file instead of failing
 		history = &mailbox.History{
@@ -217,7 +224,7 @@ func (m *Maildir) AddToHistory(actions ...mailbox.HistoryAction) error {
 	}
 	history.Actions = append(history.Actions, actions...)
 
-	file, err := os.Create(m.historyFile())
+	file, err := os.Create(m.historyFile(name))
 	if err != nil {
 		return fmt.Errorf("cannot save history: %w", err)
 	}
@@ -226,14 +233,15 @@ func (m *Maildir) AddToHistory(actions ...mailbox.HistoryAction) error {
 	encoder := json.NewEncoder(file)
 	err = encoder.Encode(history)
 	if err != nil {
-		return fmt.Errorf("cannot encore history: %w", err)
+		return fmt.Errorf("cannot encode history: %w", err)
 	}
 	return nil
 }
 
-func (m *Maildir) GetHistory() (*mailbox.History, error) {
+func (m *Maildir) GetHistory(info mailbox.Info) (*mailbox.History, error) {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	history := &mailbox.History{}
-	file, err := os.Open(m.historyFile())
+	file, err := os.Open(m.historyFile(name))
 	if err != nil {
 		return nil, fmt.Errorf("cannot open history file: %w", err)
 	}
@@ -255,8 +263,8 @@ func (m *Maildir) statusFile(name string) string {
 	return filepath.Join(m.root, name+".json")
 }
 
-func (m *Maildir) historyFile() string {
-	return filepath.Join(m.root, ".history.json")
+func (m *Maildir) historyFile(name string) string {
+	return filepath.Join(m.root, name+".history.json")
 }
 
 func (m *Maildir) setMailboxStatus(name string, status mailbox.Status) error {

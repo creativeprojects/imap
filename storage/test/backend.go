@@ -108,6 +108,16 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		})
 	})
 
+	t.Run("NewMailboxHasNoHistory", func(t *testing.T) {
+		history, err := backend.GetHistory(mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		})
+		assert.NoError(t, err)
+		require.NotNil(t, history)
+		assert.Empty(t, history.Actions)
+	})
+
 	t.Run("AppendMessage", func(t *testing.T) {
 		info := mailbox.Info{
 			Delimiter: backend.Delimiter(),

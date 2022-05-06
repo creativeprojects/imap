@@ -19,7 +19,6 @@ type Backend struct {
 	data     map[string]*memMailbox
 	log      lib.Logger
 	selected string
-	history  []mailbox.HistoryAction
 }
 
 func New() *Backend {
@@ -147,21 +146,31 @@ func (m *Backend) UnselectMailbox() error {
 	return nil
 }
 
-func (m *Backend) AddToHistory(actions ...mailbox.HistoryAction) error {
-	if m.history == nil {
-		m.history = make([]mailbox.HistoryAction, 0, len(actions))
+func (m *Backend) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+	_, ok := m.data[name]
+	if !ok {
+		return lib.ErrMailboxNotFound
 	}
-	m.history = append(m.history, actions...)
+	if m.data[name].history == nil {
+		m.data[name].history = make([]mailbox.HistoryAction, 0, len(actions))
+	}
+	m.data[name].history = append(m.data[name].history, actions...)
 	return nil
 }
 
-func (m *Backend) GetHistory() (*mailbox.History, error) {
-	sort.SliceStable(m.history, func(i, j int) bool {
-		return m.history[i].Date.Before(m.history[j].Date)
+func (m *Backend) GetHistory(info mailbox.Info) (*mailbox.History, error) {
+	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
+	_, ok := m.data[name]
+	if !ok {
+		return nil, lib.ErrMailboxNotFound
+	}
+	sort.SliceStable(m.data[name].history, func(i, j int) bool {
+		return m.data[name].history[i].Date.Before(m.data[name].history[j].Date)
 	})
 
 	return &mailbox.History{
-		Actions: m.history,
+		Actions: m.data[name].history,
 	}, nil
 }
 
@@ -173,6 +182,11 @@ func (m *Backend) GenerateFakeEmails(info mailbox.Info, count uint32, minSize, m
 	for i = 1; i <= count; i++ {
 		msg := lib.GenerateEmail("user1@example.com", "user2@example.com", i, minSize, maxSize)
 		hasher := sha256.New()
-		m.data[name].newMessage(msg, []string{}, time.Now(), hasher.Sum(msg))
+		m.data[name].newMessage(
+			msg,
+			lib.GenerateFlags(5),
+			lib.GenerateDateFrom(time.Date(2010, 1, 1, 12, 0, 0, 0, time.Local)),
+			hasher.Sum(msg),
+		)
 	}
 }

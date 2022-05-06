@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/emersion/go-imap"
 )
 
 const (
@@ -37,4 +39,36 @@ func GenerateEmail(from, to string, uid uint32, minSize, maxSize int) []byte {
 	// emails are using CRLF line endings
 	msg = strings.ReplaceAll(msg, "\n", "\r\n")
 	return []byte(msg)
+}
+
+func GenerateDateFrom(from time.Time) time.Time {
+	timeRange := time.Now().Unix() - from.Unix()
+	timestamp := seededRand.Int63n(timeRange)
+	return from.Add(time.Duration(timestamp) * time.Second)
+}
+
+// GenerateFlags generates an random number of message flags
+func GenerateFlags(max int) []string {
+	available := []string{
+		imap.SeenFlag,
+		imap.AnsweredFlag,
+		imap.FlaggedFlag,
+		imap.DeletedFlag,
+		imap.DraftFlag,
+		imap.RecentFlag,
+	}
+	picked := make([]bool, len(available))
+	count := seededRand.Intn(max)
+	flags := make([]string, count)
+	for i := 0; i < count; i++ {
+		for {
+			item := seededRand.Intn(len(available))
+			if !picked[item] {
+				flags[i] = available[item]
+				picked[item] = true
+				break
+			}
+		}
+	}
+	return flags
 }
