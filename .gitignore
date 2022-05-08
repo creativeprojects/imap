@@ -5,3 +5,4 @@ test.yaml
 /local
 /imap
 /coverage.out
+/.vscode/*.log

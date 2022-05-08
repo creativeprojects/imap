@@ -3,6 +3,7 @@ package local
 import (
 	"bytes"
 	"compress/zlib"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -251,7 +252,14 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 		if props.Size > 0 && read != int64(props.Size) {
 			return fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
 		}
-		err = mbox.Put(SerializeUID(bodyPrefix, uid), buffer.Bytes())
+		msg := buffer.Bytes()
+		var hash []byte
+		hasher := sha256.New()
+		_, err = hasher.Write(msg)
+		if err != nil {
+			hash = hasher.Sum(nil)
+		}
+		err = mbox.Put(SerializeUID(bodyPrefix, uid), msg)
 		if err != nil {
 			return fmt.Errorf("cannot save message body: %w", err)
 		}
@@ -261,6 +269,7 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 			Flags: props.Flags,
 			Date:  props.InternalDate,
 			Size:  uint32(read),
+			Hash:  hash,
 		}
 		err = storeUID(mbox, msgPrefix, uid, props)
 		if err != nil {
