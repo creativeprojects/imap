@@ -56,6 +56,13 @@ func (i MessageID) String() string {
 	return i.key
 }
 
+func (i MessageID) Value() any {
+	if i.IsUint() {
+		return i.uid
+	}
+	return i.key
+}
+
 func (i MessageID) MarshalText() ([]byte, error) {
 	return []byte(i.String()), nil
 }
