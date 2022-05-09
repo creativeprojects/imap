@@ -71,6 +71,10 @@ func (s *BoltStore) SupportMessageID() bool {
 	return true
 }
 
+func (s *BoltStore) SupportMessageHash() bool {
+	return true
+}
+
 func (s *BoltStore) Exists() bool {
 	_, err := os.Stat(s.dbFile)
 	return err == nil
@@ -237,11 +241,15 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 			return fmt.Errorf("cannot get next message ID: %w", err)
 		}
 		messageID = mailbox.NewMessageIDFromUint(uint32(uid))
+
+		// T reader for hashing
+		hasher := sha256.New()
+		tee := io.TeeReader(body, hasher)
 		buffer := &bytes.Buffer{}
-		// read, err := buffer.ReadFrom(body)
-		// \-> use compression instead
+
+		// compression
 		writer := zlib.NewWriter(buffer)
-		read, err := io.Copy(writer, body)
+		read, err := io.Copy(writer, tee)
 		if err != nil {
 			return fmt.Errorf("cannot read message body: %w", err)
 		}
@@ -252,13 +260,8 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 		if props.Size > 0 && read != int64(props.Size) {
 			return fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, read)
 		}
+
 		msg := buffer.Bytes()
-		var hash []byte
-		hasher := sha256.New()
-		_, err = hasher.Write(msg)
-		if err != nil {
-			hash = hasher.Sum(nil)
-		}
 		err = mbox.Put(SerializeUID(bodyPrefix, uid), msg)
 		if err != nil {
 			return fmt.Errorf("cannot save message body: %w", err)
@@ -269,7 +272,7 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 			Flags: props.Flags,
 			Date:  props.InternalDate,
 			Size:  uint32(read),
-			Hash:  hash,
+			Hash:  hasher.Sum(nil),
 		}
 		err = storeUID(mbox, msgPrefix, uid, props)
 		if err != nil {
@@ -320,17 +323,13 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 					return err
 				}
 				reader.Close()
-				messages <- &mailbox.Message{
-					MessageProperties: mailbox.MessageProperties{
-						Flags:        properties.Flags,
-						Size:         properties.Size,
-						Hash:         properties.Hash,
-						InternalDate: properties.Date,
-					},
-					Uid: mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
-					// Body: io.NopCloser(bytes.NewReader(value)),
-					Body: reader,
-				}
+
+				sendMessage(
+					mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
+					properties,
+					reader,
+					messages,
+				)
 			}
 			return nil
 		})
@@ -340,6 +339,19 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 		return err
 	}
 	return nil
+}
+
+func sendMessage(uid mailbox.MessageID, properties *msgProps, body io.ReadCloser, to chan *mailbox.Message) {
+	to <- &mailbox.Message{
+		MessageProperties: mailbox.MessageProperties{
+			Flags:        properties.Flags,
+			Size:         properties.Size,
+			Hash:         properties.Hash,
+			InternalDate: properties.Date,
+		},
+		Uid:  uid,
+		Body: body,
+	}
 }
 
 func (s *BoltStore) UnselectMailbox() error {

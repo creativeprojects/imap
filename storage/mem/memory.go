@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/creativeprojects/imap/lib"
+	"github.com/creativeprojects/imap/limitio"
 	"github.com/creativeprojects/imap/mailbox"
 )
 
@@ -46,6 +47,10 @@ func (s *Backend) Delimiter() string {
 }
 
 func (s *Backend) SupportMessageID() bool {
+	return true
+}
+
+func (s *Backend) SupportMessageHash() bool {
 	return true
 }
 
@@ -104,8 +109,11 @@ func (m *Backend) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 	if !ok {
 		return mailbox.EmptyMessageID, lib.ErrMailboxNotFound
 	}
+	limitReader := limitio.NewReader(body)
+	limitReader.SetRateLimit(1024*1024, 1024) // limit 1MiB/s
+
 	hasher := sha256.New()
-	tee := io.TeeReader(body, hasher)
+	tee := io.TeeReader(limitReader, hasher)
 	buffer := &bytes.Buffer{}
 	read, err := buffer.ReadFrom(tee)
 	if err != nil {
@@ -126,6 +134,9 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 	}
 
 	for uid, msg := range m.data[m.selected].messages {
+		limitReader := limitio.NewReader(bytes.NewReader(msg.content))
+		limitReader.SetRateLimit(1024*1024, 1024) // limit 1MiB/s
+
 		messages <- &mailbox.Message{
 			MessageProperties: mailbox.MessageProperties{
 				Flags:        msg.flags,
@@ -134,7 +145,7 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 				Hash:         msg.hash,
 			},
 			Uid:  mailbox.NewMessageIDFromUint(uid),
-			Body: io.NopCloser(bytes.NewReader(msg.content)),
+			Body: io.NopCloser(limitReader),
 		}
 	}
 

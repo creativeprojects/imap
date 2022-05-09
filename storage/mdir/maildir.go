@@ -61,6 +61,10 @@ func (s *Maildir) SupportMessageID() bool {
 	return true
 }
 
+func (s *Maildir) SupportMessageHash() bool {
+	return false
+}
+
 func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	dirName := filepath.Join(m.root, name)
@@ -183,19 +187,19 @@ func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
 	for _, key := range keys {
 		flags, err := mbox.Flags(key)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot read flags for key %q: %w", key, err)
 		}
 		filename, err := mbox.Filename(key)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot find filename for key %q: %w", key, err)
 		}
 		info, err := os.Stat(filename)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot stat %q: %w", filename, err)
 		}
 		file, err := mbox.Open(key)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot open key %q: %w", key, err)
 		}
 		messages <- &mailbox.Message{
 			MessageProperties: mailbox.MessageProperties{

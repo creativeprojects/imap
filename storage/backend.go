@@ -11,6 +11,8 @@ type Backend interface {
 	Delimiter() string
 	// SupportMessageID indicates if the backend support unique IDs (like the IMAP UIDPLUS extension)
 	SupportMessageID() bool
+	// SupportMessageHash indicates if the backend stores or provides a hash for the messages
+	SupportMessageHash() bool
 	// Close the backend
 	Close() error
 	CreateMailbox(info mailbox.Info) error

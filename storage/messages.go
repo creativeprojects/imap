@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"io"
 
 	"github.com/creativeprojects/imap/mailbox"
 )
@@ -21,6 +23,12 @@ func LoadMessageProperties(backend Backend, mbox mailbox.Info, pbar Progresser) 
 		}
 		if len(msg.Hash) == 0 {
 			// calculate the hash now
+			hasher := sha256.New()
+			_, err := io.Copy(hasher, msg.Body)
+			if err != nil {
+				return messages, fmt.Errorf("error reading message %v: %w", msg.Uid.Value(), err)
+			}
+			msg.Hash = hasher.Sum(nil)
 		}
 		_ = msg.Body.Close()
 		msg.Body = nil

@@ -23,21 +23,24 @@ var (
 		"Message-ID: <0000000@localhost/>\r\n" +
 		"Content-Type: text/plain\r\n" +
 		"\r\n" +
-		"Hi there :)"
+		"Hi there :)\r\n"
 	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.UTC)
 	sampleMessageFlags = []string{imap.SeenFlag}
 	sampleMessageHash  []byte
 )
 
-func init() {
-	hasher := sha256.New()
-	hasher.Write([]byte(sampleMessage))
-	sampleMessageHash = hasher.Sum(nil)
-}
-
 // RunTestsOnBackend is the unit tests runner called by the concrete implementations of storage.Backend
 func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 	require.NotNil(t, backend)
+
+	t.Run("PrepareSampleMessageHash", func(t *testing.T) {
+		hasher := sha256.New()
+		n, err := hasher.Write([]byte(sampleMessage))
+		assert.NoError(t, err)
+		assert.Equal(t, len(sampleMessage), n)
+
+		sampleMessageHash = hasher.Sum(nil)
+	})
 
 	t.Run("ListMailbox", func(t *testing.T) {
 		list, err := backend.ListMailbox()
@@ -175,7 +178,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 			if msg.Size > 0 {
 				assert.Equal(t, read, int64(msg.Size))
 			}
-			if len(msg.Hash) > 0 {
+			if backend.SupportMessageHash() {
 				assert.Equal(t, sampleMessageHash, msg.Hash)
 			}
 			assert.True(t, sampleMessageDate.Equal(msg.InternalDate))
@@ -252,6 +255,9 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 				assert.Equal(t, int64(len(sampleMessage)), read)
 				if msg.Size > 0 {
 					assert.Equal(t, read, int64(msg.Size))
+				}
+				if backend.SupportMessageHash() {
+					assert.Equal(t, sampleMessageHash, msg.Hash)
 				}
 				assert.True(t, sampleMessageDate.Equal(msg.InternalDate))
 				assert.ElementsMatch(t, sampleMessageFlags, msg.Flags)

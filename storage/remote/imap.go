@@ -112,6 +112,10 @@ func (i *Imap) SupportMessageID() bool {
 	return i.uidplusClient != nil
 }
 
+func (i *Imap) SupportMessageHash() bool {
+	return false
+}
+
 func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 	mailboxes := make(chan *imap.MailboxInfo, 10)
 	done := make(chan error, 1)

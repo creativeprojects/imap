@@ -12,6 +12,7 @@ require (
 	github.com/stretchr/testify v1.7.1
 	go.etcd.io/bbolt v1.3.6
 	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
+	golang.org/x/time v0.0.0-20220411224347-583f2d630306
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )
 
