@@ -6,3 +6,4 @@ test.yaml
 /imap
 /coverage.out
 /.vscode/*.log
+/go.work
