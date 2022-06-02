@@ -10,8 +10,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "imap",
-	Short: "IMAP tools: backup, copy, move",
-	Long:  "\nIMAP tools: backup, copy, move",
+	Short: "IMAP tools: backup, copy, move your email between mailboxes",
+	Long:  "\nIMAP tools: backup, copy, move your email between mailboxes",
 	Run: func(cmd *cobra.Command, args []string) {
 		// this function needs to be defined
 	},
