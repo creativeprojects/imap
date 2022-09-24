@@ -7,7 +7,7 @@ import (
 	"github.com/creativeprojects/imap/term"
 )
 
-func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser) ([]mailbox.HistoryEntry, error) {
+func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser, history *mailbox.History) ([]mailbox.HistoryEntry, error) {
 	err := backendDest.CreateMailbox(mbox)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create mailbox at destination: %w", err)
@@ -24,6 +24,10 @@ func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Pr
 	for msg := range receiver {
 		if pbar != nil {
 			pbar.Increment()
+		}
+		if previousEntry := mailbox.FindHistoryEntryFromSourceID(history, msg.Uid); previousEntry != nil {
+			// message ID already copied
+			continue
 		}
 		props := mailbox.MessageProperties{
 			Flags:        msg.Flags,

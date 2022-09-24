@@ -76,3 +76,17 @@ func SaveHistoryToFile(filename string, history *History) error {
 	}
 	return nil
 }
+
+func FindHistoryEntryFromSourceID(history *History, sourceMessageID MessageID) *HistoryEntry {
+	if history == nil {
+		return nil
+	}
+	for _, action := range history.Actions {
+		for _, entry := range action.Entries {
+			if entry.SourceID == sourceMessageID {
+				return &entry
+			}
+		}
+	}
+	return nil
+}

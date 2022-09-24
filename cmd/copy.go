@@ -63,9 +63,16 @@ func runCopy(cmd *cobra.Command, args []string) error {
 			// it's empty so don't bother
 			continue
 		}
+
 		term.Infof("copying mailbox %s", mbox.Name)
+
+		// load mailbox history
+		history, err := backendDest.GetHistory(mbox)
+		if err != nil {
+			term.Infof("no history found on mailbox %s", mbox.Name)
+		}
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		entries, err := storage.CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar))
+		entries, err := storage.CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar), history)
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}
