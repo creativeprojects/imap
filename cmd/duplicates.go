@@ -14,7 +14,7 @@ import (
 
 var duplicatesCmd = &cobra.Command{
 	Use:   "duplicates",
-	Short: "Find duplicate emails accross mailboxes (in the same account)",
+	Short: "Find duplicate emails across mailboxes (in the same account)",
 	RunE:  runDuplicates,
 }
 
@@ -42,6 +42,7 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot list source account mailbox: %w", err)
 	}
 
+	duplicates := 0
 	hashes := make(map[string][]mailbox.Message, 0)
 	for _, mbox := range mailboxes {
 		status, err := backend.SelectMailbox(mbox)
@@ -70,6 +71,7 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 			}
 			if _, found := hashes[key]; found {
 				// duplicate
+				duplicates++
 				hashes[key] = append(hashes[key], entry)
 				continue
 			}
@@ -78,5 +80,12 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("total of %d unique messages\n", len(hashes))
+	if duplicates == 0 {
+		fmt.Print("no duplicate message\n")
+	} else if duplicates == 1 {
+		fmt.Print("found 1 duplicate message\n")
+	} else {
+		fmt.Printf("found %d duplicate messages\n", duplicates)
+	}
 	return nil
 }
