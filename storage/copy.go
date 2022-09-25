@@ -25,25 +25,14 @@ func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Pr
 		if pbar != nil {
 			pbar.Increment()
 		}
-		if previousEntry := mailbox.FindHistoryEntryFromSourceID(history, msg.Uid); previousEntry != nil {
-			// message ID already copied
+		id, err := copyMessage(msg, backendDest, mbox, history)
+		if err != nil || id == nil {
+			// don't save this entry in history
 			continue
-		}
-		props := mailbox.MessageProperties{
-			Flags:        msg.Flags,
-			InternalDate: msg.InternalDate,
-			Size:         msg.Size,
-			Hash:         msg.Hash,
-		}
-		id, err := backendDest.PutMessage(mbox, props, msg.Body)
-		_ = msg.Body.Close()
-		if err != nil {
-			// display error but keep going
-			term.Errorf("error saving message: %s", err)
 		}
 		entries = append(entries, mailbox.HistoryEntry{
 			SourceID:  msg.Uid,
-			MessageID: id,
+			MessageID: *id,
 		})
 	}
 	// wait until all the messages arrived
@@ -53,4 +42,25 @@ func CopyMessages(backendSource, backendDest Backend, mbox mailbox.Info, pbar Pr
 		return entries, fmt.Errorf("error loading messages: %w", err)
 	}
 	return entries, nil
+}
+
+func copyMessage(msgSource *mailbox.Message, backendDest Backend, mboxDest mailbox.Info, history *mailbox.History) (*mailbox.MessageID, error) {
+	defer msgSource.Body.Close()
+
+	if previousEntry := mailbox.FindHistoryEntryFromSourceID(history, msgSource.Uid); previousEntry != nil {
+		// message ID already copied
+		return nil, nil
+	}
+	props := mailbox.MessageProperties{
+		Flags:        msgSource.Flags,
+		InternalDate: msgSource.InternalDate,
+		Size:         msgSource.Size,
+		Hash:         msgSource.Hash,
+	}
+	id, err := backendDest.PutMessage(mboxDest, props, msgSource.Body)
+	if err != nil {
+		// display error but keep going
+		term.Errorf("error saving message: %s", err)
+	}
+	return &id, err
 }

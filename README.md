@@ -13,8 +13,19 @@ Backup, copy, move your emails from and to IMAP servers. It can also load and sa
 
 ## commands implemented:
 
-* list (mailboxes)
-* copy all message from one backend to another one
+* `list`: list mailboxes from the account
+* `copy`: copy all messages from one account to another one (incremental copy)
+
+## keeping history for the incremental copy
+
+The copy command will save a history of messages copied from the source. The history is saved on the destination backend. This is needed to associate the messages IDs of the source with the destination.
+
+The way the history is saved is different for each backend:
+* local: the history is saved in the database besides the messages
+* Maildir: the history is saved in a file `<mailbox name>.history.json`
+* imap: the history is saved in a folder `.cache`
+
+The incremental copy will break if you delete the history: all messages will be copied again.
 
 ## configuration file
 

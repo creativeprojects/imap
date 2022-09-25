@@ -1,0 +1,123 @@
+project_name: imap
+
+builds:
+  - id: imap_targz
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - freebsd
+      - linux
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+
+  - id: imap_zip
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+
+archives:
+  - id: targz
+    builds:
+    - imap_targz
+    format: tar.gz
+
+  - id: zip
+    builds:
+    - imap_zip
+    format: zip
+    
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+dockers:
+  - image_templates:
+    - "creativeprojects/imap:latest-amd64"
+    - "creativeprojects/imap:{{ .RawVersion }}-amd64"
+    ids:
+    - imap_targz
+    use: buildx
+    goos: linux
+    goarch: amd64
+    dockerfile: build/Dockerfile
+    build_flag_templates:
+    - "--platform=linux/amd64"
+    - "--build-arg=ARCH=amd64"
+  - image_templates:
+    - "creativeprojects/imap:latest-arm64v8"
+    - "creativeprojects/imap:{{ .RawVersion }}-arm64v8"
+    ids:
+    - imap_targz
+    use: buildx
+    goos: linux
+    goarch: arm64
+    dockerfile: build/Dockerfile
+    build_flag_templates:
+    - "--platform=linux/arm64/v8"
+    - "--build-arg=ARCH=arm64"
+
+docker_manifests:
+  - name_template: creativeprojects/imap:{{ .RawVersion }}
+    image_templates:
+    - creativeprojects/imap:{{ .RawVersion }}-amd64
+    - creativeprojects/imap:{{ .RawVersion }}-arm64v8
+  - name_template: creativeprojects/imap:latest
+    image_templates:
+    - creativeprojects/imap:latest-amd64
+    - creativeprojects/imap:latest-arm64v8
+
+brews:
+  - 
+    name: imap
+    ids:
+      - targz
+    goarm: "6"
+    tap:
+      owner: creativeprojects
+      name: "homebrew-tap"
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaser
+      email: fred@creativeprojects.tech
+    folder: Formula
+    homepage: https://github.com/creativeprojects/{{ .ProjectName }}
+    description: "IMAP tools: backup, copy, move your emails between servers and locally"
+    license: "GPL-3.0-only"
+    custom_block: |
+      head "https://github.com/creativeprojects/{{ .ProjectName }}.git"
+    install: |
+      bin.install "{{ .ProjectName }}"
+
+release:
+  draft: true

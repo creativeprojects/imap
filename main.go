@@ -6,12 +6,12 @@ import (
 
 // These fields are populated by the goreleaser build
 var (
-	buildVersion = "0.1.0-dev"
-	buildCommit  = "---"
-	buildDate    = "today"
-	buildBy      = "dev"
+	version = "0.1.0-dev"
+	commit  = "---"
+	date    = "today"
+	builtBy = "dev"
 )
 
 func main() {
-	cmd.Execute(buildVersion, buildCommit, buildDate, buildBy)
+	cmd.Execute(version, commit, date, builtBy)
 }

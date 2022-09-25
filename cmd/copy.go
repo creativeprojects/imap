@@ -79,6 +79,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			term.Error(err.Error())
 		}
+		// we still save history even if an error occurred
 		if len(entries) > 0 {
 			action := mailbox.HistoryAction{
 				SourceAccountTag: mailbox.AccountTag(accountSource.ServerURL, accountSource.Username),

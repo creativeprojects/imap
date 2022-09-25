@@ -6,7 +6,8 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOTOOL=$(GOCMD) tool
 GOMOD=$(GOCMD) mod
-GOPATH?=`$(GOCMD) env GOPATH`
+GOPATH?=$(shell $(GOCMD) env GOPATH)
+GOBIN?=$(shell $(GOCMD) env GOBIN)
 
 BINARY=imap
 BINARY_LINUX=$(BINARY)_linux
@@ -20,7 +21,7 @@ BUILD_DATE=`date`
 BUILD_COMMIT=`git rev-parse HEAD`
 
 all: download test build
-.PHONY: all download test build build-linux install dovecot
+.PHONY: all download test coverage build build-linux install dovecot nightly generate-install
 
 download:
 	@echo "[*] $@"
@@ -50,3 +51,19 @@ install: download
 dovecot:
 	@echo "[*] $@"
 	docker run -d --rm -p 143:143 -p 993:993 dovecot/dovecot:latest
+
+$(GOBIN)/eget:
+	@echo "[*] $@"
+	go install -v github.com/zyedidia/eget@latest
+
+$(GOBIN)/goreleaser: $(GOBIN)/eget
+	@echo "[*] $@"
+	eget goreleaser/goreleaser --to $(GOBIN)
+
+nightly: $(GOBIN)/goreleaser
+	@echo "[*] $@"
+	goreleaser --snapshot --skip-publish --rm-dist
+
+generate-install:
+	@echo "[*] $@"
+	godownloader .godownloader.yml -r creativeprojects/imap -o install.sh
