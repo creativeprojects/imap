@@ -10,6 +10,7 @@ import (
 	"github.com/creativeprojects/imap/term"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 var copyCmd = &cobra.Command{
@@ -66,13 +67,16 @@ func runCopy(cmd *cobra.Command, args []string) error {
 
 		term.Infof("copying mailbox %s", mbox.Name)
 
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		// load mailbox history
 		history, err := backendDest.GetHistory(mbox)
 		if err != nil {
 			term.Infof("no history found on mailbox %s", mbox.Name)
 		}
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		entries, err := storage.CopyMessages(backendSource, backendDest, mbox, newProgresser(pbar), history)
+		entries, err := storage.CopyMessages(ctx, backendSource, backendDest, mbox, newProgresser(pbar), history)
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}

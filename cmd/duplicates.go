@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -42,6 +43,9 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot list source account mailbox: %w", err)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	duplicates := 0
 	hashes := make(map[string][]mailbox.Message, 0)
 	for _, mbox := range mailboxes {
@@ -55,7 +59,7 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 		}
 		term.Infof("reading mailbox %s", mbox.Name)
 		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
-		entries, err := storage.LoadMessageProperties(backend, mbox, newProgresser(pbar))
+		entries, err := storage.LoadMessageProperties(ctx, backend, mbox, newProgresser(pbar))
 		if pbar != nil {
 			_, _ = pbar.Stop()
 		}

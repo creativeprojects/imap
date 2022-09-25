@@ -3,6 +3,7 @@ package local
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -285,7 +286,7 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 	return messageID, err
 }
 
-func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
+func (s *BoltStore) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if s.selected == "" {
@@ -306,6 +307,9 @@ func (s *BoltStore) FetchMessages(messages chan *mailbox.Message) error {
 		}
 
 		err = mailboxBucket.ForEach(func(key, value []byte) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			s.log.Printf("* Key %q", string(key))
 			if bytes.HasPrefix(key, []byte(bodyPrefix)) {
 				properties := &msgProps{}

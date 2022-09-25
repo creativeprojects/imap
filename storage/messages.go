@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -8,13 +9,13 @@ import (
 	"github.com/creativeprojects/imap/mailbox"
 )
 
-func LoadMessageProperties(backend Backend, mbox mailbox.Info, pbar Progresser) ([]mailbox.Message, error) {
+func LoadMessageProperties(ctx context.Context, backend Backend, mbox mailbox.Info, pbar Progresser) ([]mailbox.Message, error) {
 	messages := make([]mailbox.Message, 0)
 
 	receiver := make(chan *mailbox.Message, 10)
 	done := make(chan error, 1)
 	go func() {
-		done <- backend.FetchMessages(receiver)
+		done <- backend.FetchMessages(ctx, receiver)
 	}()
 
 	for msg := range receiver {

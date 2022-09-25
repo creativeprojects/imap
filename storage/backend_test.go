@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -188,7 +189,7 @@ func RunIntegrationTestsOnBackend(t *testing.T, backend Backend) {
 		assert.NoError(t, err)
 
 		progress := &testProgress{}
-		entries, err := CopyMessages(memBackend, backend, info, progress, nil)
+		entries, err := CopyMessages(context.Background(), memBackend, backend, info, progress, nil)
 		assert.NoError(t, err)
 
 		assert.Equal(t, total, progress.count)

@@ -1,6 +1,7 @@
 package mdir
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -170,7 +171,7 @@ func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Rea
 	return key, copied, nil
 }
 
-func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
+func (m *Maildir) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if m.selected == "" {
@@ -185,6 +186,9 @@ func (m *Maildir) FetchMessages(messages chan *mailbox.Message) error {
 	}
 
 	for _, key := range keys {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		flags, err := mbox.Flags(key)
 		if err != nil {
 			return fmt.Errorf("cannot read flags for key %q: %w", key, err)

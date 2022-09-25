@@ -2,6 +2,7 @@ package mem
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -126,7 +127,7 @@ func (m *Backend) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
-func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
+func (m *Backend) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if m.selected == "" {
@@ -134,6 +135,9 @@ func (m *Backend) FetchMessages(messages chan *mailbox.Message) error {
 	}
 
 	for uid, msg := range m.data[m.selected].messages {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		limitReader := limitio.NewReader(bytes.NewReader(msg.content))
 		limitReader.SetRateLimit(1024*1024, 1024) // limit 1MiB/s
 

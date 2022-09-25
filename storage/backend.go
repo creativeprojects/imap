@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 
 	"github.com/creativeprojects/imap/mailbox"
@@ -22,7 +23,7 @@ type Backend interface {
 	SelectMailbox(info mailbox.Info) (*mailbox.Status, error)
 	PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error)
 	// FetchMessages needs a mailbox to be selected first
-	FetchMessages(messages chan *mailbox.Message) error
+	FetchMessages(ctx context.Context, messages chan *mailbox.Message) error
 	// UnselectMailbox after fetching messages
 	UnselectMailbox() error
 	AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAction) error

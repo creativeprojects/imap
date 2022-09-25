@@ -2,6 +2,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -216,7 +217,7 @@ func (i *Imap) PutMessage(info mailbox.Info, props mailbox.MessageProperties, bo
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
-func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
+func (i *Imap) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if i.selected == nil {
@@ -232,6 +233,7 @@ func (i *Imap) FetchMessages(messages chan *mailbox.Message) error {
 
 	receiver := make(chan *imap.Message, 10)
 	done := make(chan error, 1)
+	// fetch messages in the background
 	go func() {
 		done <- i.client.Fetch(seqset, items, receiver)
 	}()
