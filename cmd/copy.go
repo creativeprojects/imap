@@ -3,8 +3,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/storage"
 	"github.com/creativeprojects/imap/term"
@@ -30,12 +33,20 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		return errors.New("missing destination account name")
 	}
 
+	var sourceLogger lib.Logger
+	var destLogger lib.Logger
+
+	if global.verbose {
+		sourceLogger = log.New(os.Stdout, "source: ", 0)
+		destLogger = log.New(os.Stdout, "dest: ", 0)
+	}
+
 	source := args[0]
 	accountSource, ok := config.Accounts[source]
 	if !ok {
 		return fmt.Errorf("source account not found: %s", source)
 	}
-	backendSource, err := NewBackend(accountSource, nil)
+	backendSource, err := NewBackend(accountSource, sourceLogger)
 	if err != nil {
 		return fmt.Errorf("cannot open source backend: %w", err)
 	}
@@ -45,7 +56,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	if !ok {
 		return fmt.Errorf("destination account not found: %s", destination)
 	}
-	backendDest, err := NewBackend(accountDest, nil)
+	backendDest, err := NewBackend(accountDest, destLogger)
 	if err != nil {
 		return fmt.Errorf("cannot open destination backend: %w", err)
 	}
@@ -75,9 +86,13 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			term.Infof("no history found on mailbox %s", mbox.Name)
 		}
-		pbar, _ := pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
+		var pbar *pterm.ProgressbarPrinter
+		if !global.quiet && !global.verbose {
+			pbar, _ = pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
+		}
 		entries, err := storage.CopyMessages(ctx, backendSource, backendDest, mbox, newProgresser(pbar), history)
 		if pbar != nil {
+			pbar.Add(pbar.Total - pbar.Current)
 			_, _ = pbar.Stop()
 		}
 		if err != nil {

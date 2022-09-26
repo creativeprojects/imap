@@ -13,5 +13,8 @@ func newProgresser(pbar *pterm.ProgressbarPrinter) *progresser {
 }
 
 func (p *progresser) Increment() {
+	if p.pbar == nil {
+		return
+	}
 	p.pbar.Increment()
 }

@@ -14,6 +14,9 @@ import (
 )
 
 func NewBackend(config cfg.Account, logger lib.Logger) (storage.Backend, error) {
+	if logger == nil {
+		logger = &lib.NoLog{}
+	}
 	switch config.Type {
 	case cfg.IMAP:
 		wd, _ := os.Getwd()
@@ -23,6 +26,7 @@ func NewBackend(config cfg.Account, logger lib.Logger) (storage.Backend, error) 
 			Password:            config.Password,
 			SkipTLSVerification: config.SkipTLSVerification,
 			CacheDir:            filepath.Join(wd, ".cache"),
+			DebugLogger:         logger,
 		})
 	case cfg.LOCAL:
 		return local.NewBoltStoreWithLogger(config.File, logger)
