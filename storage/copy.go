@@ -19,7 +19,7 @@ func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox 
 	receiver := make(chan *mailbox.Message, 10)
 	done := make(chan error, 1)
 	go func() {
-		done <- backendSource.FetchMessages(ctx, receiver)
+		done <- backendSource.FetchMessages(ctx, mailbox.FindLastAction(history), receiver)
 	}()
 
 	for msg := range receiver {

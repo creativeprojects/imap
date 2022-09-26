@@ -267,7 +267,7 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 		if err != nil {
 			return fmt.Errorf("cannot save message body: %w", err)
 		}
-		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d flags=%+v", name, uid, read, props.Flags)
+		s.log.Printf("Message saved: mailbox=%q uid=%d size=%d flags=%+v date=%q", name, uid, read, props.Flags, props.InternalDate)
 
 		props := &msgProps{
 			Flags: props.Flags,
@@ -286,13 +286,16 @@ func (s *BoltStore) PutMessage(info mailbox.Info, props mailbox.MessagePropertie
 	return messageID, err
 }
 
-func (s *BoltStore) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
+func (s *BoltStore) FetchMessages(ctx context.Context, since time.Time, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if s.selected == "" {
 		return lib.ErrNotSelected
 	}
 	name := s.selected
+
+	// removes a day
+	since = lib.SafePadding(since)
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		var err error
@@ -320,6 +323,10 @@ func (s *BoltStore) FetchMessages(ctx context.Context, messages chan *mailbox.Me
 					if err != nil {
 						return err
 					}
+				}
+				if !since.IsZero() && properties.Date.Before(since) {
+					// skip this message
+					return nil
 				}
 				// uncompress data
 				reader, err := zlib.NewReader(bytes.NewReader(value))

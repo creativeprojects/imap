@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
@@ -212,20 +213,40 @@ func (i *Imap) PutMessage(info mailbox.Info, props mailbox.MessageProperties, bo
 				name, read, flags, err,
 			)
 	}
-	i.log.Printf("Message saved: mailbox=%q uid=%v size=%d bytes flags=%v", name, uid, read, flags)
+	i.log.Printf("Message saved: mailbox=%q uid=%v size=%d flags=%v date=%q", name, uid, read, flags, props.InternalDate)
 
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
-func (i *Imap) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
+func (i *Imap) FetchMessages(ctx context.Context, since time.Time, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if i.selected == nil {
 		return lib.ErrNotSelected
 	}
 
-	seqset := new(imap.SeqSet)
-	seqset.AddRange(1, i.selected.Messages)
+	var seqset *imap.SeqSet
+
+	if !since.IsZero() {
+		// removes a day
+		since = lib.SafePadding(since)
+		i.log.Printf("searching for emails after %s", since)
+		seqNums, err := i.client.Search(&imap.SearchCriteria{Since: since})
+		if err != nil {
+			i.log.Printf("error filtering emails by date: %s", err)
+		}
+		if len(seqNums) == 0 {
+			// no message
+			return nil
+		}
+		seqset = new(imap.SeqSet)
+		seqset.AddNum(seqNums...)
+	}
+	if seqset == nil {
+		// download all messages
+		seqset = new(imap.SeqSet)
+		seqset.AddRange(1, i.selected.Messages)
+	}
 
 	section := &imap.BodySectionName{Peek: true}
 	items := []imap.FetchItem{section.FetchItem(), imap.FetchFlags, imap.FetchUid, imap.FetchInternalDate}
@@ -243,7 +264,7 @@ func (i *Imap) FetchMessages(ctx context.Context, messages chan *mailbox.Message
 	go func() {
 		defer wg.Done()
 		for msg := range receiver {
-			i.log.Printf("Received IMAP message seq=%d", msg.SeqNum)
+			i.log.Printf("Received IMAP message seq=%d flags=%+v date=%q", msg.SeqNum, msg.Flags, msg.InternalDate)
 			// receive all the messages as they get in
 			message := &mailbox.Message{
 				MessageProperties: mailbox.MessageProperties{

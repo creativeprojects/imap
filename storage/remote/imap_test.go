@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/storage/test"
 	compress "github.com/emersion/go-imap-compress"
 	"github.com/emersion/go-imap/backend/memory"
@@ -20,6 +21,7 @@ func TestImapBackend(t *testing.T) {
 
 	// Create a new server
 	server := server.New(be)
+	server.ErrorLog = lib.NewTestLogger(t, "server")
 	// Since we will use this server for testing only, we can allow plain text
 	// authentication over non-encrypted connections
 	server.AllowInsecureAuth = true
@@ -39,11 +41,12 @@ func TestImapBackend(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	backend, err := NewImap(Config{
-		ServerURL: listener.Addr().String(),
-		Username:  "username",
-		Password:  "password",
-		NoTLS:     true,
-		CacheDir:  t.TempDir(),
+		ServerURL:   listener.Addr().String(),
+		Username:    "username",
+		Password:    "password",
+		NoTLS:       true,
+		CacheDir:    t.TempDir(),
+		DebugLogger: lib.NewTestLogger(t, "client"),
 	})
 	assert.NoError(t, err)
 

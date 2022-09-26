@@ -139,7 +139,7 @@ func (m *Maildir) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 		}
 		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, copied)
 	}
-	m.log.Printf("Message saved: mailbox=%q key=%q size=%d", name, key, copied)
+	m.log.Printf("Message saved: mailbox=%q key=%q size=%d flags=%v date=%q", name, key, copied, props.Flags, props.InternalDate)
 
 	filename, err := mbox.Filename(key)
 	if err == nil {
@@ -171,12 +171,15 @@ func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Rea
 	return key, copied, nil
 }
 
-func (m *Maildir) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
+func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if m.selected == "" {
 		return lib.ErrNotSelected
 	}
+
+	// removes a day
+	since = lib.SafePadding(since)
 
 	name := m.selected
 	mbox := maildir.Dir(filepath.Join(m.root, name))
@@ -200,6 +203,10 @@ func (m *Maildir) FetchMessages(ctx context.Context, messages chan *mailbox.Mess
 		info, err := os.Stat(filename)
 		if err != nil {
 			return fmt.Errorf("cannot stat %q: %w", filename, err)
+		}
+		if !since.IsZero() && info.ModTime().Before(since) {
+			// skip this message
+			continue
 		}
 		file, err := mbox.Open(key)
 		if err != nil {

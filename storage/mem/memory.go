@@ -127,16 +127,23 @@ func (m *Backend) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 	return mailbox.NewMessageIDFromUint(uid), nil
 }
 
-func (m *Backend) FetchMessages(ctx context.Context, messages chan *mailbox.Message) error {
+func (m *Backend) FetchMessages(ctx context.Context, since time.Time, messages chan *mailbox.Message) error {
 	defer close(messages)
 
 	if m.selected == "" {
 		return lib.ErrNotSelected
 	}
 
+	// removes a day
+	since = lib.SafePadding(since)
+
 	for uid, msg := range m.data[m.selected].messages {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if !since.IsZero() && msg.date.Before(since) {
+			// skip this message
+			continue
 		}
 		limitReader := limitio.NewReader(bytes.NewReader(msg.content))
 		limitReader.SetRateLimit(1024*1024, 1024) // limit 1MiB/s

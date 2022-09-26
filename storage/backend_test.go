@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/creativeprojects/imap/cfg"
+	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/storage/local"
 	"github.com/creativeprojects/imap/storage/mdir"
@@ -67,7 +68,7 @@ func TestImapBackend(t *testing.T) {
 		Password:    "password",
 		NoTLS:       true,
 		CacheDir:    t.TempDir(),
-		DebugLogger: &testLogger{t},
+		DebugLogger: lib.NewTestLogger(t, "client"),
 	})
 	assert.NoError(t, err)
 
@@ -87,7 +88,7 @@ func TestMaildirBackend(t *testing.T) {
 		return
 	}
 	root := t.TempDir()
-	backend, err := mdir.NewWithLogger(root, &testLogger{t})
+	backend, err := mdir.NewWithLogger(root, lib.NewTestLogger(t, "client"))
 	require.NoError(t, err)
 
 	defer backend.Close()
@@ -97,7 +98,7 @@ func TestMaildirBackend(t *testing.T) {
 
 func TestStoreBackend(t *testing.T) {
 	dir := t.TempDir()
-	backend, err := local.NewBoltStoreWithLogger(filepath.Join(dir, "store.db"), &testLogger{t})
+	backend, err := local.NewBoltStoreWithLogger(filepath.Join(dir, "store.db"), lib.NewTestLogger(t, "client"))
 	require.NoError(t, err)
 
 	defer backend.Close()
@@ -109,7 +110,7 @@ func TestStoreBackend(t *testing.T) {
 }
 
 func TestMemoryBackend(t *testing.T) {
-	backend := mem.NewWithLogger(&testLogger{t})
+	backend := mem.NewWithLogger(lib.NewTestLogger(t, "client"))
 
 	defer backend.Close()
 
@@ -130,7 +131,7 @@ func TestBackendFromConfig(t *testing.T) {
 	for name, account := range config.Accounts {
 		switch account.Type {
 		case cfg.LOCAL:
-			backend, err := local.NewBoltStoreWithLogger(account.File, &testLogger{t})
+			backend, err := local.NewBoltStoreWithLogger(account.File, lib.NewTestLogger(t, "client"))
 			require.NoError(t, err)
 			defer backend.Close()
 
@@ -146,7 +147,7 @@ func TestBackendFromConfig(t *testing.T) {
 				t.Log("maildir is not supported on Windows")
 				continue
 			}
-			backend, err := mdir.NewWithLogger(account.Root, &testLogger{t})
+			backend, err := mdir.NewWithLogger(account.Root, lib.NewTestLogger(t, "client"))
 			require.NoError(t, err)
 			defer backend.Close()
 
@@ -161,7 +162,7 @@ func TestBackendFromConfig(t *testing.T) {
 				Password:            account.Password,
 				SkipTLSVerification: account.SkipTLSVerification,
 				CacheDir:            t.TempDir(),
-				DebugLogger:         &testLogger{t},
+				DebugLogger:         lib.NewTestLogger(t, "client"),
 			})
 			require.NoError(t, err)
 			defer backend.Close()

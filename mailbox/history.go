@@ -90,3 +90,19 @@ func FindHistoryEntryFromSourceID(history *History, sourceMessageID MessageID) *
 	}
 	return nil
 }
+
+func FindLastAction(history *History) time.Time {
+	last := time.Time{}
+	if history == nil {
+		return last
+	}
+	if len(history.Actions) == 0 {
+		return last
+	}
+	for _, action := range history.Actions {
+		if action.Date.After(last) {
+			last = action.Date
+		}
+	}
+	return last
+}

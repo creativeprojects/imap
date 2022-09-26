@@ -164,7 +164,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		receiver := make(chan *mailbox.Message, 10)
 		done := make(chan error, 1)
 		go func() {
-			done <- backend.FetchMessages(context.Background(), receiver)
+			done <- backend.FetchMessages(context.Background(), time.Time{}, receiver)
 		}()
 
 		count := 0
@@ -238,7 +238,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		receiver := make(chan *mailbox.Message, 10)
 		done := make(chan error, 1)
 		go func() {
-			done <- backend.FetchMessages(context.Background(), receiver)
+			done <- backend.FetchMessages(context.Background(), time.Time{}, receiver)
 		}()
 
 		wg := sync.WaitGroup{}
@@ -336,6 +336,54 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		assert.NoError(t, err)
 		t.Logf("%v", status)
 		assert.Equal(t, uint32(3), status.Messages)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
+	t.Run("AddsNewerMessage", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		props := mailbox.MessageProperties{
+			Flags:        sampleMessageFlags,
+			InternalDate: sampleMessageDate.Add(24 * time.Hour),
+			Size:         uint32(len(sampleMessage)),
+		}
+		body := bytes.NewBufferString(sampleMessage)
+		_, err := backend.PutMessage(info, props, body)
+		assert.NoError(t, err)
+
+		// Verify the mailbox has 4 messages
+		status, err := backend.SelectMailbox(info)
+		assert.NoError(t, err)
+		assert.Equal(t, uint32(4), status.Messages)
+
+		// Verify we download the last message only
+		receiver := make(chan *mailbox.Message, 10)
+		done := make(chan error, 1)
+		go func() {
+			done <- backend.FetchMessages(context.Background(), sampleMessageDate.Add(26*time.Hour), receiver)
+		}()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			count := 0
+			for msg := range receiver {
+				count++
+				msg.Body.Close()
+			}
+			// only 1 message should have been downloaded
+			assert.Equal(t, 1, count)
+		}()
+		// wait until all the messages arrived
+		err = <-done
+		assert.NoError(t, err)
+
+		wg.Wait()
 
 		err = backend.UnselectMailbox()
 		assert.NoError(t, err)
