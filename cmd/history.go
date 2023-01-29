@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const dateFormat = "2006-01-02 15:04:05 MST"
+
 var historyCmd = &cobra.Command{
 	Use:   "history",
 	Short: "Display history of mailbox copy",
@@ -59,13 +61,20 @@ func displayHistory(history *mailbox.History) {
 	table := pterm.DefaultTable.WithBoxed(true).WithHasHeader().WithData(pterm.TableData{
 		{"Date", "Action", "Source", "Messages"},
 	})
+	accounts := make(map[string]bool, 0)
 	for _, action := range history.Actions {
 		table.Data = append(table.Data, []string{
-			action.Date.Format("2006-01-02 15:04:05 MST"),
+			action.Date.Format(dateFormat),
 			action.Action,
 			action.SourceAccountTag[0:16],
 			strconv.Itoa(len(action.Entries)),
 		})
+		accounts[action.SourceAccountTag] = true
 	}
-	table.Render()
+	_ = table.Render()
+
+	for accountID := range accounts {
+		latest := mailbox.FindLatestInternalDateFromHistory(accountID, history)
+		term.Debugf("account %s: next copy will start from %s", accountID[0:16], latest.Format(dateFormat))
+	}
 }

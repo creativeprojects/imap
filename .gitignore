@@ -4,6 +4,7 @@ test.yaml
 /.cache
 /local
 /imap
+/imap_linux
 /coverage.out
 /.vscode/*.log
 /go.work*
