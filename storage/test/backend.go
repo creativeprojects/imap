@@ -134,6 +134,22 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		assert.Empty(t, history.Actions)
 	})
 
+	t.Run("NewMailboxHasNoLatestDate", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		_, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+
+		latest, err := backend.LatestDate(context.Background())
+		assert.NoError(t, err)
+		assert.Empty(t, latest)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
 	t.Run("AppendMessage", func(t *testing.T) {
 		info := mailbox.Info{
 			Delimiter: backend.Delimiter(),
@@ -191,6 +207,22 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		// wait until all the messages arrived
 		err := <-done
 		assert.NoError(t, err)
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
+	t.Run("LatestDateOnOneMessage", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		_, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+
+		latest, err := backend.LatestDate(context.Background())
+		assert.NoError(t, err)
+		assert.True(t, latest.Equal(sampleMessageDate), "latest date is unexpected")
 
 		err = backend.UnselectMailbox()
 		assert.NoError(t, err)
@@ -384,6 +416,22 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		assert.NoError(t, err)
 
 		wg.Wait()
+
+		err = backend.UnselectMailbox()
+		assert.NoError(t, err)
+	})
+
+	t.Run("LatestDateOnFourMessages", func(t *testing.T) {
+		info := mailbox.Info{
+			Delimiter: backend.Delimiter(),
+			Name:      "Work",
+		}
+		_, err := backend.SelectMailbox(info)
+		require.NoError(t, err)
+
+		latest, err := backend.LatestDate(context.Background())
+		assert.NoError(t, err)
+		assert.True(t, latest.Equal(sampleMessageDate.Add(24*time.Hour)), "latest date is unexpected")
 
 		err = backend.UnselectMailbox()
 		assert.NoError(t, err)

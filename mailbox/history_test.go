@@ -3,6 +3,7 @@ package mailbox
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,8 +29,8 @@ func TestSaveAndLoadHistory(t *testing.T) {
 				Action:           "test",
 				UidValidity:      123,
 				Entries: []HistoryEntry{
-					{NewMessageIDFromUint(1), NewMessageIDFromUint(2)},
-					{NewMessageIDFromString("3"), NewMessageIDFromString("4")},
+					{NewMessageIDFromUint(1), time.Time{}, NewMessageIDFromUint(2)},
+					{NewMessageIDFromString("3"), time.Time{}, NewMessageIDFromString("4")},
 				},
 			},
 		},
@@ -52,8 +53,8 @@ func TestFindHistoryFromSourceID(t *testing.T) {
 				Action:           "test",
 				UidValidity:      123,
 				Entries: []HistoryEntry{
-					{NewMessageIDFromUint(1), NewMessageIDFromUint(2)},
-					{NewMessageIDFromString("3"), NewMessageIDFromString("4")},
+					{NewMessageIDFromUint(1), time.Time{}, NewMessageIDFromUint(2)},
+					{NewMessageIDFromString("3"), time.Time{}, NewMessageIDFromString("4")},
 				},
 			},
 			{
@@ -61,8 +62,8 @@ func TestFindHistoryFromSourceID(t *testing.T) {
 				Action:           "test",
 				UidValidity:      123,
 				Entries: []HistoryEntry{
-					{NewMessageIDFromUint(5), NewMessageIDFromUint(6)},
-					{NewMessageIDFromString("7"), NewMessageIDFromString("8")},
+					{NewMessageIDFromUint(5), time.Time{}, NewMessageIDFromUint(6)},
+					{NewMessageIDFromString("7"), time.Time{}, NewMessageIDFromString("8")},
 				},
 			},
 		},

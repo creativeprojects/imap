@@ -66,6 +66,7 @@ func (s *Maildir) SupportMessageHash() bool {
 	return false
 }
 
+// CreateMailbox doesn't return an error if the mailbox already exists
 func (m *Maildir) CreateMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	dirName := filepath.Join(m.root, name)
@@ -223,6 +224,42 @@ func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages c
 		}
 	}
 	return nil
+}
+
+// LatestDate returns the internal date of the latest message
+func (m *Maildir) LatestDate(ctx context.Context) (time.Time, error) {
+	latest := time.Time{}
+
+	if m.selected == "" {
+		return latest, lib.ErrNotSelected
+	}
+
+	mbox := maildir.Dir(filepath.Join(m.root, m.selected))
+	keys, err := mbox.Keys()
+	if err != nil {
+		return latest, err
+	}
+
+	for _, key := range keys {
+		if ctx.Err() != nil {
+			return latest, ctx.Err()
+		}
+		filename, err := mbox.Filename(key)
+		if err != nil {
+			// should we keep going after an error?
+			return latest, fmt.Errorf("cannot find filename for key %q: %w", key, err)
+		}
+		info, err := os.Stat(filename)
+		if err != nil {
+			// should we keep going after an error?
+			return latest, fmt.Errorf("cannot stat %q: %w", filename, err)
+		}
+		if latest.Before(info.ModTime()) {
+			latest = info.ModTime()
+		}
+	}
+
+	return latest, nil
 }
 
 func (m *Maildir) UnselectMailbox() error {

@@ -23,8 +23,9 @@ type HistoryAction struct {
 }
 
 type HistoryEntry struct {
-	SourceID  MessageID
-	MessageID MessageID
+	SourceID           MessageID
+	SourceInternalDate time.Time
+	MessageID          MessageID
 }
 
 func AccountTag(serverURL, username string) string {

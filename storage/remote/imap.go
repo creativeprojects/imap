@@ -145,6 +145,7 @@ func (i *Imap) ListMailbox() ([]mailbox.Info, error) {
 	return info, nil
 }
 
+// CreateMailbox doesn't return an error if the mailbox already exists
 func (i *Imap) CreateMailbox(info mailbox.Info) error {
 	name := info.Name
 	mailboxes, err := i.ListMailbox()
@@ -284,6 +285,41 @@ func (i *Imap) FetchMessages(ctx context.Context, since time.Time, messages chan
 	wg.Wait()
 	i.log.Print("All IMAP messages received")
 	return err
+}
+
+// LatestDate returns the internal date of the latest message
+func (i *Imap) LatestDate(ctx context.Context) (time.Time, error) {
+	latest := time.Time{}
+
+	if i.selected == nil {
+		return latest, lib.ErrNotSelected
+	}
+
+	if i.selected.Messages == 0 {
+		// mailbox is empty
+		return latest, nil
+	}
+
+	seqset := new(imap.SeqSet)
+	seqset.AddRange(i.selected.Messages, i.selected.Messages)
+
+	items := []imap.FetchItem{imap.FetchFlags, imap.FetchUid, imap.FetchInternalDate}
+
+	receiver := make(chan *imap.Message, 1)
+	done := make(chan error, 1)
+	go func() {
+		done <- i.client.Fetch(seqset, items, receiver)
+	}()
+
+	msg := <-receiver
+	i.log.Printf("Received IMAP message seq=%d flags=%+v date=%q", msg.SeqNum, msg.Flags, msg.InternalDate)
+	latest = msg.InternalDate
+
+	if err := <-done; err != nil {
+		return latest, err
+	}
+
+	return latest, nil
 }
 
 func (i *Imap) UnselectMailbox() error {

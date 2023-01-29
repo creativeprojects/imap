@@ -55,6 +55,7 @@ func (s *Backend) SupportMessageHash() bool {
 	return true
 }
 
+// CreateMailbox doesn't return an error if the mailbox already exists
 func (m *Backend) CreateMailbox(info mailbox.Info) error {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 
@@ -161,6 +162,28 @@ func (m *Backend) FetchMessages(ctx context.Context, since time.Time, messages c
 	}
 
 	return nil
+}
+
+// LatestDate returns the internal date of the latest message
+func (m *Backend) LatestDate(ctx context.Context) (time.Time, error) {
+	latest := time.Time{}
+
+	if m.selected == "" {
+		return latest, lib.ErrNotSelected
+	}
+
+	mailbox := m.data[m.selected]
+	if len(mailbox.messages) == 0 {
+		return latest, nil
+	}
+
+	for uid := mailbox.currentUid; uid >= 0; uid-- {
+		if msg, found := mailbox.messages[uid]; found {
+			return msg.date, nil
+		}
+	}
+
+	return latest, nil
 }
 
 func (m *Backend) UnselectMailbox() error {

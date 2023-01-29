@@ -103,6 +103,7 @@ func (s *BoltStore) Close() error {
 	return s.db.Close()
 }
 
+// CreateMailbox doesn't return an error if the mailbox already exists
 func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	// Start the transaction.
 	tx, err := s.db.Begin(true)
@@ -335,7 +336,7 @@ func (s *BoltStore) FetchMessages(ctx context.Context, since time.Time, messages
 				}
 				reader.Close()
 
-				sendMessage(
+				channelMessage(
 					mailbox.NewMessageIDFromUint(uint32(DeserializeUID(bodyPrefix, key))),
 					properties,
 					reader,
@@ -352,7 +353,7 @@ func (s *BoltStore) FetchMessages(ctx context.Context, since time.Time, messages
 	return nil
 }
 
-func sendMessage(uid mailbox.MessageID, properties *msgProps, body io.ReadCloser, to chan *mailbox.Message) {
+func channelMessage(uid mailbox.MessageID, properties *msgProps, body io.ReadCloser, to chan *mailbox.Message) {
 	to <- &mailbox.Message{
 		MessageProperties: mailbox.MessageProperties{
 			Flags:        properties.Flags,
@@ -363,6 +364,61 @@ func sendMessage(uid mailbox.MessageID, properties *msgProps, body io.ReadCloser
 		Uid:  uid,
 		Body: body,
 	}
+}
+
+// LatestDate returns the internal date of the latest message
+func (s *BoltStore) LatestDate(ctx context.Context) (time.Time, error) {
+	latest := time.Time{}
+
+	if s.selected == "" {
+		return latest, lib.ErrNotSelected
+	}
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(mailboxBucket))
+		if bucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+		mailboxBucket := bucket.Bucket([]byte(s.selected))
+		if mailboxBucket == nil {
+			return lib.ErrMailboxNotFound
+		}
+
+		// Create a cursor for iteration.
+		c := mailboxBucket.Cursor()
+
+		// Iterate over items in reverse sorted key order. This starts
+		// from the last key/value pair and updates the key/value variables to
+		// the previous key/value on each iteration.
+		//
+		// The loop finishes at the beginning of the cursor when a nil key
+		// is returned.
+		for key, value := c.Last(); key != nil; key, value = c.Prev() {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			s.log.Printf("* Key %q", string(key))
+			if bytes.HasPrefix(key, []byte(msgPrefix)) {
+				if value != nil {
+					properties, err := DeserializeObject[msgProps](value)
+					if err != nil {
+						return err
+					}
+					if latest.Before(properties.Date) {
+						latest = properties.Date
+					}
+					// we stop at the first message encountered
+					return nil
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return latest, err
+	}
+
+	return latest, nil
 }
 
 func (s *BoltStore) UnselectMailbox() error {

@@ -33,8 +33,9 @@ func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox 
 			continue
 		}
 		entries = append(entries, mailbox.HistoryEntry{
-			SourceID:  msg.Uid,
-			MessageID: *id,
+			SourceID:           msg.Uid,
+			SourceInternalDate: msg.InternalDate,
+			MessageID:          *id,
 		})
 	}
 	// wait until all the messages arrived
