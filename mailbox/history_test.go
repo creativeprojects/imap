@@ -9,12 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenerateAccountTag(t *testing.T) {
-	expected := "d6549d2a410fe02063abe508d42102f65b3ef71e8b68ce11b8f4e62072a2a1d8"
-	tag := AccountTag("mail.example.com:993", "user@example.com")
-	assert.Equal(t, expected, tag)
-}
-
 func TestGetEmptyHistory(t *testing.T) {
 	history, err := GetHistoryFromFile("/file_really_should_not_exist_here")
 	assert.NoError(t, err)
@@ -93,4 +87,50 @@ func TestFindHistoryFromSourceID(t *testing.T) {
 			assert.Nil(t, found)
 		}
 	}
+}
+
+func TestFindLatestActionFromHistory(t *testing.T) {
+	day := 24 * time.Hour
+	initialTime := time.Date(2020, 1, 1, 12, 20, 0, 0, time.Local)
+	dayBefore := initialTime.Add(-day)
+	dayAfter := initialTime.Add(day)
+	history := &History{
+		Actions: []HistoryAction{
+			{
+				SourceAccountTag: "source",
+				Action:           "test",
+				UidValidity:      123,
+				Date:             initialTime,
+				Entries: []HistoryEntry{
+					{SourceInternalDate: initialTime.Add(-4 * day)},
+					{SourceInternalDate: initialTime.Add(-3 * day)},
+				},
+			},
+			{
+				SourceAccountTag: "source",
+				Action:           "test",
+				UidValidity:      123,
+				Date:             dayAfter,
+				Entries: []HistoryEntry{
+					{SourceInternalDate: initialTime.Add(-2 * day)},
+					{SourceInternalDate: dayBefore},
+				},
+			},
+			{
+				SourceAccountTag: "another source",
+				Action:           "test",
+				UidValidity:      123,
+				Date:             dayAfter.Add(day),
+				Entries: []HistoryEntry{
+					{SourceInternalDate: initialTime.Add(-5 * day)},
+				},
+			},
+		},
+	}
+
+	lastAction := FindLastAction("source", history)
+	assert.True(t, lastAction.Equal(dayAfter))
+
+	latestMessage := FindLatestInternalDateFromHistory("source", history)
+	assert.True(t, latestMessage.Equal(dayBefore))
 }

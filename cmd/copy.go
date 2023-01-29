@@ -76,7 +76,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		term.Infof("copying mailbox %s", mbox.Name)
+		// term.Infof("copying mailbox %s", mbox.Name)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -84,11 +84,11 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		// load mailbox history
 		history, err := backendDest.GetHistory(mbox)
 		if err != nil {
-			term.Infof("no history found on mailbox %s", mbox.Name)
+			term.Infof("\nno history found on mailbox %s", mbox.Name)
 		}
 		var pbar *pterm.ProgressbarPrinter
 		if !global.quiet && !global.verbose {
-			pbar, _ = pterm.DefaultProgressbar.WithTotal(int(status.Messages)).Start()
+			pbar, _ = pterm.DefaultProgressbar.WithTitle(mbox.Name).WithTotal(int(status.Messages)).Start()
 		}
 		entries, err := storage.CopyMessages(ctx, backendSource, backendDest, mbox, newProgresser(pbar), history)
 		if pbar != nil {
@@ -101,7 +101,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		// we still save history even if an error occurred
 		if len(entries) > 0 {
 			action := mailbox.HistoryAction{
-				SourceAccountTag: mailbox.AccountTag(accountSource.ServerURL, accountSource.Username),
+				SourceAccountTag: backendSource.AccountID(),
 				Date:             time.Now(),
 				Action:           mailbox.ActionCopy,
 				UidValidity:      status.UidValidity,

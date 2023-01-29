@@ -45,7 +45,7 @@ func runHistory(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, mailbox := range mailboxes {
-		term.Infof("%s:\n", mailbox.Name)
+		term.Infof("%s:", mailbox.Name)
 		history, err := backend.GetHistory(mailbox)
 		if err != nil {
 			term.Error(err)

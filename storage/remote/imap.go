@@ -77,7 +77,7 @@ func NewImap(cfg Config) (*Imap, error) {
 	// try to enable UIDPLUS extension
 	uidExt := uidplus.NewClient(imapClient)
 	supported, err := uidExt.SupportUidPlus()
-	if err != nil || supported == false {
+	if err != nil || !supported {
 		log.Print("IMAP server does NOT support UIDPLUS extension")
 		uidExt = nil
 	}
@@ -93,7 +93,7 @@ func NewImap(cfg Config) (*Imap, error) {
 		client:        imapClient,
 		uidplusClient: uidExt,
 		log:           log,
-		tag:           mailbox.AccountTag(cfg.ServerURL, cfg.Username),
+		tag:           lib.AccountTag(cfg.ServerURL, cfg.Username),
 		cacheDir:      cacheDir,
 	}, nil
 }
@@ -101,6 +101,11 @@ func NewImap(cfg Config) (*Imap, error) {
 func (i *Imap) Close() error {
 	i.log.Print("Closing connection")
 	return i.client.Logout()
+}
+
+// AccountID is an internal ID used to tag accounts in history
+func (i *Imap) AccountID() string {
+	return i.tag
 }
 
 func (i *Imap) Delimiter() string {

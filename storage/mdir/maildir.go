@@ -40,6 +40,7 @@ func NewWithLogger(root string, logger lib.Logger) (*Maildir, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &Maildir{
 		root: root,
 		log:  logger,
@@ -52,6 +53,18 @@ func (m *Maildir) Close() error {
 
 func (m *Maildir) Root() string {
 	return m.root
+}
+
+// AccountID is an internal ID used to tag accounts in history
+func (s *Maildir) AccountID() string {
+	metadata, _ := s.getMetadata()
+	if metadata == nil || metadata.AccountID == "" {
+		metadata = &AccountMetadata{
+			AccountID: lib.RandomTag(s.root),
+		}
+		_ = s.setMetadata(metadata)
+	}
+	return metadata.AccountID
 }
 
 func (s *Maildir) Delimiter() string {
@@ -297,6 +310,10 @@ func (m *Maildir) mailboxExists(name string) bool {
 	return stat.IsDir()
 }
 
+func (m *Maildir) metadataFile() string {
+	return filepath.Join(m.root, ".account.metadata.json")
+}
+
 func (m *Maildir) statusFile(name string) string {
 	return filepath.Join(m.root, name+".json")
 }
@@ -336,4 +353,37 @@ func (m *Maildir) getMailboxStatus(name string) (*mailbox.Status, error) {
 	}
 
 	return status, nil
+}
+
+func (m *Maildir) setMetadata(metadata *AccountMetadata) error {
+	file, err := os.Create(m.metadataFile())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := json.NewEncoder(file)
+	err = encoder.Encode(metadata)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Maildir) getMetadata() (*AccountMetadata, error) {
+	file, err := os.Open(m.metadataFile())
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
+	}
+	defer file.Close()
+
+	metadata := &AccountMetadata{}
+	decoder := json.NewDecoder(file)
+	err = decoder.Decode(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
+	}
+
+	return metadata, nil
 }

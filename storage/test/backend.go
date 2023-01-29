@@ -34,6 +34,11 @@ var (
 func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 	require.NotNil(t, backend)
 
+	t.Run("HasAccountID", func(t *testing.T) {
+		accountID := backend.AccountID()
+		assert.NotEmpty(t, accountID)
+	})
+
 	t.Run("PrepareSampleMessageHash", func(t *testing.T) {
 		hasher := sha256.New()
 		n, err := hasher.Write([]byte(sampleMessage))

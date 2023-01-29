@@ -21,6 +21,7 @@ type Backend struct {
 	data     map[string]*memMailbox
 	log      lib.Logger
 	selected string
+	tag      string
 }
 
 func New() *Backend {
@@ -43,15 +44,23 @@ func (m *Backend) Close() error {
 	return nil
 }
 
-func (s *Backend) Delimiter() string {
+// AccountID is an internal ID used to tag accounts in history
+func (m *Backend) AccountID() string {
+	if m.tag == "" {
+		m.tag = lib.RandomTag("memory")
+	}
+	return m.tag
+}
+
+func (m *Backend) Delimiter() string {
 	return Delimiter
 }
 
-func (s *Backend) SupportMessageID() bool {
+func (m *Backend) SupportMessageID() bool {
 	return true
 }
 
-func (s *Backend) SupportMessageHash() bool {
+func (m *Backend) SupportMessageHash() bool {
 	return true
 }
 

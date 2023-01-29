@@ -1,8 +1,6 @@
 package mailbox
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -26,15 +24,6 @@ type HistoryEntry struct {
 	SourceID           MessageID
 	SourceInternalDate time.Time
 	MessageID          MessageID
-}
-
-func AccountTag(serverURL, username string) string {
-	hasher := sha256.New()
-	hasher.Write([]byte(username))
-	hasher.Write([]byte(":"))
-	hasher.Write([]byte(serverURL))
-	hasher.Write([]byte("\n"))
-	return hex.EncodeToString(hasher.Sum(nil))
 }
 
 const (
@@ -92,7 +81,7 @@ func FindHistoryEntryFromSourceID(history *History, sourceMessageID MessageID) *
 	return nil
 }
 
-func FindLastAction(history *History) time.Time {
+func FindLastAction(sourceAccountTag string, history *History) time.Time {
 	last := time.Time{}
 	if history == nil {
 		return last
@@ -101,9 +90,36 @@ func FindLastAction(history *History) time.Time {
 		return last
 	}
 	for _, action := range history.Actions {
+		if sourceAccountTag != "" && sourceAccountTag != action.SourceAccountTag {
+			continue
+		}
 		if action.Date.After(last) {
 			last = action.Date
 		}
 	}
 	return last
+}
+
+func FindLatestInternalDateFromHistory(sourceAccountTag string, history *History) time.Time {
+	zero := time.Time{}
+	if history == nil {
+		return zero
+	}
+	if len(history.Actions) == 0 {
+		return zero
+	}
+	// we believe actions are in order
+	for actionID := len(history.Actions) - 1; actionID >= 0; actionID-- {
+		action := history.Actions[actionID]
+		if sourceAccountTag != "" && sourceAccountTag != action.SourceAccountTag {
+			continue
+		}
+		// we also believe messages are in order
+		for entryID := len(action.Entries) - 1; entryID >= 0; entryID-- {
+			if action.Entries[entryID].SourceInternalDate.After(zero) {
+				return action.Entries[entryID].SourceInternalDate
+			}
+		}
+	}
+	return zero
 }

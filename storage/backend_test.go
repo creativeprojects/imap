@@ -103,9 +103,6 @@ func TestStoreBackend(t *testing.T) {
 
 	defer backend.Close()
 
-	err = backend.Init()
-	require.NoError(t, err)
-
 	RunIntegrationTestsOnBackend(t, backend)
 }
 
@@ -134,9 +131,6 @@ func TestBackendFromConfig(t *testing.T) {
 			backend, err := local.NewBoltStoreWithLogger(account.File, lib.NewTestLogger(t, "client"))
 			require.NoError(t, err)
 			defer backend.Close()
-
-			err = backend.Init()
-			require.NoError(t, err)
 
 			t.Run(name, func(t *testing.T) {
 				RunIntegrationTestsOnBackend(t, backend)

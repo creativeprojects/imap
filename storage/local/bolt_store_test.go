@@ -15,9 +15,6 @@ func TestStoreBackend(t *testing.T) {
 
 	defer backend.Close()
 
-	err = backend.Init()
-	require.NoError(t, err)
-
 	err = test.PrepareBackend(backend)
 	require.NoError(t, err)
 

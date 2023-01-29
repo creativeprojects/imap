@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/creativeprojects/imap/term"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Display list of mailboxes",
+	Short: "Display list of mailboxes in an account",
 	RunE:  runList,
 }
 
@@ -33,9 +34,18 @@ func runList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot open backend: %w", err)
 	}
 
+	accountID := backend.AccountID()
+	if accountID != "" {
+		term.Debugf("Account ID: %s", accountID)
+	}
+
 	mailboxes, err := backend.ListMailbox()
 	if err != nil {
 		return fmt.Errorf("cannot list account mailbox: %w", err)
+	}
+	if len(mailboxes) == 0 {
+		term.Warn("No mailbox found on this account")
+		return nil
 	}
 	table := pterm.DefaultTable.WithHasHeader().WithData(pterm.TableData{
 		{"Mailbox", "Messages"},

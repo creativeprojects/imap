@@ -9,6 +9,8 @@ import (
 )
 
 type Backend interface {
+	// AccountID is an internal ID used to tag accounts in history
+	AccountID() string
 	// Delimiter used to construct a path of mailboxes with its children
 	Delimiter() string
 	// SupportMessageID indicates if the backend support unique IDs (like the IMAP UIDPLUS extension)

@@ -26,6 +26,7 @@ const (
 	bodyPrefix      = "body-"
 	msgPrefix       = "msg-"
 	versionKey      = "version"
+	accountKey      = "accountID"
 	boltFileVersion = 1
 )
 
@@ -64,6 +65,19 @@ func NewBoltStoreWithLogger(filename string, logger lib.Logger) (*BoltStore, err
 	}, nil
 }
 
+// AccountID is an internal ID used to tag accounts in history
+func (s *BoltStore) AccountID() string {
+	metadata, _ := s.getMetadata()
+	if metadata == nil || metadata.AccountID == "" {
+		metadata = &accountMetadata{
+			Version:   boltFileVersion,
+			AccountID: lib.RandomTag(s.dbFile),
+		}
+		_ = s.setMetadata(metadata)
+	}
+	return metadata.AccountID
+}
+
 func (s *BoltStore) Delimiter() string {
 	return "."
 }
@@ -79,24 +93,6 @@ func (s *BoltStore) SupportMessageHash() bool {
 func (s *BoltStore) Exists() bool {
 	_, err := os.Stat(s.dbFile)
 	return err == nil
-}
-
-func (s *BoltStore) Init() error {
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists([]byte(metadataBucket))
-		if err != nil {
-			return err
-		}
-		version, err := SerializeInt(boltFileVersion)
-		if err != nil {
-			return err
-		}
-		return bucket.Put([]byte(versionKey), version)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (s *BoltStore) Close() error {
@@ -500,6 +496,48 @@ func (s *BoltStore) Backup(filename string) error {
 		return err
 	}
 	return nil
+}
+
+func (s *BoltStore) setMetadata(metadata *accountMetadata) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		bucket, err := tx.CreateBucketIfNotExists([]byte(metadataBucket))
+		if err != nil {
+			return err
+		}
+		version, err := SerializeInt(metadata.Version)
+		if err != nil {
+			return err
+		}
+		err = bucket.Put([]byte(versionKey), version)
+		if err != nil {
+			return err
+		}
+		return bucket.Put([]byte(accountKey), []byte(metadata.AccountID))
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *BoltStore) getMetadata() (*accountMetadata, error) {
+	metadata := &accountMetadata{}
+	err := s.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(metadataBucket))
+		if bucket == nil {
+			return nil
+		}
+		data := bucket.Get([]byte(versionKey))
+		if data != nil {
+			metadata.Version, _ = DeserializeInt(data)
+		}
+		data = bucket.Get([]byte(accountKey))
+		if data != nil {
+			metadata.AccountID = string(data)
+		}
+		return nil
+	})
+	return metadata, err
 }
 
 func setMailboxInfo(bucket *bolt.Bucket, info mailbox.Info) error {

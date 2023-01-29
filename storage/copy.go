@@ -19,8 +19,8 @@ func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox 
 	receiver := make(chan *mailbox.Message, 10)
 	done := make(chan error, 1)
 	go func() {
-		// TODO: don't get the last action but the latest message from the mailbox
-		done <- backendSource.FetchMessages(ctx, mailbox.FindLastAction(history), receiver)
+		// fetch from the latest message stored in the destination mailbox
+		done <- backendSource.FetchMessages(ctx, mailbox.FindLatestInternalDateFromHistory(backendSource.AccountID(), history), receiver)
 	}()
 
 	for msg := range receiver {
