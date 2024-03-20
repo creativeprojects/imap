@@ -39,3 +39,10 @@ jobs:
 
     - name: Code coverage
       uses: codecov/codecov-action@v4
+      with:
+        env_vars: OS,GO
+        file: ./coverage.out
+        flags: unittests
+        fail_ci_if_error: false
+        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}
