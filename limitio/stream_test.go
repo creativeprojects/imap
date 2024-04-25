@@ -14,17 +14,26 @@ import (
 
 const burst = 1024 // 1KB of burst
 
-var rates = []float64{
-	500 * 1024,       // 500KB/sec
-	1024 * 1024,      // 1MB/sec
-	10 * 1024 * 1024, // 10MB/sec
+func getRates() []float64 {
+	if testing.Short() {
+		return []float64{
+			500 * 1024,  // 500KB/sec
+			1024 * 1024, // 1MB/sec
+		}
+	}
+	return []float64{
+		500 * 1024,       // 500KB/sec
+		1024 * 1024,      // 1MB/sec
+		10 * 1024 * 1024, // 10MB/sec
+	}
 }
 
 func getSources() []*bytes.Reader {
 	if testing.Short() {
 		return []*bytes.Reader{
-			bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),  // 64KB
-			bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)), // 256KB
+			bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),   // 64KB
+			bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)),  // 256KB
+			bytes.NewReader(bytes.Repeat([]byte{2}, 1024*1024)), // 1MB
 		}
 	}
 	return []*bytes.Reader{
@@ -38,7 +47,7 @@ func TestRead(t *testing.T) {
 	t.Parallel()
 
 	for _, src := range getSources() {
-		for _, limit := range rates {
+		for _, limit := range getRates() {
 			src.Seek(0, 0)
 			sio := limitio.NewReader(src)
 			sio.SetRateLimit(limit, burst)
@@ -67,7 +76,7 @@ func TestWrite(t *testing.T) {
 	t.Parallel()
 
 	for _, src := range getSources() {
-		for _, limit := range rates {
+		for _, limit := range getRates() {
 			src.Seek(0, 0)
 			sio := limitio.NewWriter(io.Discard)
 			sio.SetRateLimit(limit, burst)
