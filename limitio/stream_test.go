@@ -44,8 +44,6 @@ func getSources() []*bytes.Reader {
 }
 
 func TestRead(t *testing.T) {
-	t.Parallel()
-
 	for _, src := range getSources() {
 		for _, limit := range getRates() {
 			src.Seek(0, 0)
@@ -73,8 +71,6 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	t.Parallel()
-
 	for _, src := range getSources() {
 		for _, limit := range getRates() {
 			src.Seek(0, 0)
