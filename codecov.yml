@@ -1,8 +1,13 @@
 ignore:
   - cfg/
   - cmd/
+  - lib/flags.go
+  - lib/logger.go
   - limitio/
+  - mailbox/info.go
+  - storage/messages.go
   - term/
+  - main.go
 
 codecov:
   notify:
