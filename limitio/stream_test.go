@@ -21,6 +21,12 @@ var rates = []float64{
 }
 
 func getSources() []*bytes.Reader {
+	if testing.Short() {
+		return []*bytes.Reader{
+			bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),  // 64KB
+			bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)), // 256KB
+		}
+	}
 	return []*bytes.Reader{
 		bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),   // 64KB
 		bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)),  // 256KB
@@ -30,9 +36,7 @@ func getSources() []*bytes.Reader {
 
 func TestRead(t *testing.T) {
 	t.Parallel()
-	if testing.Short() {
-		t.SkipNow()
-	}
+
 	for _, src := range getSources() {
 		for _, limit := range rates {
 			src.Seek(0, 0)
@@ -61,9 +65,7 @@ func TestRead(t *testing.T) {
 
 func TestWrite(t *testing.T) {
 	t.Parallel()
-	if testing.Short() {
-		t.SkipNow()
-	}
+
 	for _, src := range getSources() {
 		for _, limit := range rates {
 			src.Seek(0, 0)
