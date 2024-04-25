@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"testing"
 	"time"
@@ -21,23 +20,26 @@ var rates = []float64{
 	10 * 1024 * 1024, // 10MB/sec
 }
 
-var srcs = []*bytes.Reader{
-	bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),   // 64KB
-	bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)),  // 256KB
-	bytes.NewReader(bytes.Repeat([]byte{2}, 1024*1024)), // 1MB
+func getSources() []*bytes.Reader {
+	return []*bytes.Reader{
+		bytes.NewReader(bytes.Repeat([]byte{0}, 64*1024)),   // 64KB
+		bytes.NewReader(bytes.Repeat([]byte{1}, 256*1024)),  // 256KB
+		bytes.NewReader(bytes.Repeat([]byte{2}, 1024*1024)), // 1MB
+	}
 }
 
 func TestRead(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.SkipNow()
 	}
-	for _, src := range srcs {
+	for _, src := range getSources() {
 		for _, limit := range rates {
 			src.Seek(0, 0)
 			sio := limitio.NewReader(src)
 			sio.SetRateLimit(limit, burst)
 			start := time.Now()
-			n, err := io.Copy(ioutil.Discard, sio)
+			n, err := io.Copy(io.Discard, sio)
 			elapsed := time.Since(start)
 			if err != nil {
 				t.Error("io.Copy failed", err)
@@ -58,13 +60,14 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.SkipNow()
 	}
-	for _, src := range srcs {
+	for _, src := range getSources() {
 		for _, limit := range rates {
 			src.Seek(0, 0)
-			sio := limitio.NewWriter(ioutil.Discard)
+			sio := limitio.NewWriter(io.Discard)
 			sio.SetRateLimit(limit, burst)
 			start := time.Now()
 			n, err := io.Copy(sio, src)
