@@ -110,7 +110,7 @@ brews:
     commit_author:
       name: goreleaser
       email: fred@creativeprojects.tech
-    folder: Formula
+    directory: Formula
     homepage: https://github.com/creativeprojects/{{ .ProjectName }}
     description: "IMAP tools: backup, copy, move your emails between servers and locally"
     license: "GPL-3.0-only"
