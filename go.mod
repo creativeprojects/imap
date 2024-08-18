@@ -1,6 +1,6 @@
 module github.com/creativeprojects/imap
 
-go 1.22
+go 1.23.0
 
 require (
 	github.com/creativeprojects/go-selfupdate v1.3.0
