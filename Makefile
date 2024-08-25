@@ -62,7 +62,7 @@ $(GOBIN)/goreleaser: $(GOBIN)/eget
 
 nightly: $(GOBIN)/goreleaser
 	@echo "[*] $@"
-	goreleaser --snapshot --skip-publish --rm-dist
+	GITLAB_TOKEN= goreleaser --snapshot --skip=publish --clean
 
 generate-install:
 	@echo "[*] $@"
