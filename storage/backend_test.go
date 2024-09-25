@@ -16,26 +16,12 @@ import (
 	"github.com/creativeprojects/imap/storage/mdir"
 	"github.com/creativeprojects/imap/storage/mem"
 	"github.com/creativeprojects/imap/storage/remote"
-	"github.com/emersion/go-imap"
 	compress "github.com/emersion/go-imap-compress"
 	"github.com/emersion/go-imap/backend/memory"
 	"github.com/emersion/go-imap/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/nettest"
-)
-
-var (
-	sampleMessage = "From: contact@example.org\r\n" +
-		"To: contact@example.org\r\n" +
-		"Subject: A little message, just for you\r\n" +
-		"Date: Wed, 11 May 2016 14:31:59 +0000\r\n" +
-		"Message-ID: <0000000@localhost/>\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"\r\n" +
-		"Hi there :)"
-	sampleMessageDate  = time.Date(2020, 10, 20, 12, 11, 0, 0, time.UTC)
-	sampleMessageFlags = []string{imap.SeenFlag}
 )
 
 func TestImapBackend(t *testing.T) {

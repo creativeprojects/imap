@@ -106,7 +106,9 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// Setup the mailbox bucket.
 	root, err := tx.CreateBucketIfNotExists([]byte(mailboxBucket))
@@ -428,7 +430,9 @@ func (s *BoltStore) AddToHistory(info mailbox.Info, actions ...mailbox.HistoryAc
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	// Setup the mailbox bucket.
 	root, err := tx.CreateBucketIfNotExists([]byte(mailboxBucket))

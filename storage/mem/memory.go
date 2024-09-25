@@ -186,6 +186,7 @@ func (m *Backend) LatestDate(ctx context.Context) (time.Time, error) {
 		return latest, nil
 	}
 
+	//nolint:staticcheck
 	for uid := mailbox.currentUid; uid >= 0; uid-- {
 		if msg, found := mailbox.messages[uid]; found {
 			return msg.date, nil

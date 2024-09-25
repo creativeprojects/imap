@@ -47,7 +47,7 @@ func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox 
 	return entries, nil
 }
 
-func copyMessage(ctx context.Context, msgSource *mailbox.Message, backendDest Backend, mboxDest mailbox.Info, history *mailbox.History) (*mailbox.MessageID, error) {
+func copyMessage(_ context.Context, msgSource *mailbox.Message, backendDest Backend, mboxDest mailbox.Info, history *mailbox.History) (*mailbox.MessageID, error) {
 	defer msgSource.Body.Close()
 
 	if previousEntry := mailbox.FindHistoryEntryFromSourceID(history, msgSource.Uid); previousEntry != nil {

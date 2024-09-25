@@ -54,7 +54,9 @@ func NewImap(cfg Config) (*Imap, error) {
 	if cfg.NoTLS {
 		imapClient, err = client.Dial(cfg.ServerURL)
 	} else {
-		tlsConfig := &tls.Config{}
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
 		if cfg.SkipTLSVerification {
 			tlsConfig.InsecureSkipVerify = true
 		}

@@ -20,11 +20,11 @@ func TestDateGenerator(t *testing.T) {
 }
 
 func TestGenerateFlags(t *testing.T) {
-	max := 5
+	maxInt := 5
 	for i := 0; i < 100000; i++ {
-		flags := GenerateFlags(max)
+		flags := GenerateFlags(maxInt)
 		require.NotNil(t, flags)
 		require.GreaterOrEqual(t, len(flags), 0)
-		require.Less(t, len(flags), max)
+		require.Less(t, len(flags), maxInt)
 	}
 }

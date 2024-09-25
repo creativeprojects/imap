@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -13,7 +14,6 @@ import (
 	"github.com/creativeprojects/imap/term"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 var copyCmd = &cobra.Command{
