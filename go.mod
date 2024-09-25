@@ -7,13 +7,13 @@ require (
 	github.com/emersion/go-imap v1.2.1
 	github.com/emersion/go-imap-compress v0.0.0-20201103190257-14809af1d1b9
 	github.com/emersion/go-imap-uidplus v0.0.0-20200503180755-e75854c361e9
-	github.com/emersion/go-maildir v0.4.2
+	github.com/emersion/go-maildir v0.5.0
 	github.com/pterm/pterm v0.12.79
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
-	go.etcd.io/bbolt v1.3.10
-	golang.org/x/net v0.26.0
-	golang.org/x/time v0.5.0
+	go.etcd.io/bbolt v1.3.11
+	golang.org/x/net v0.29.0
+	golang.org/x/time v0.6.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -45,10 +45,10 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/xanzy/go-gitlab v0.106.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/crypto v0.24.0 // indirect
+	golang.org/x/crypto v0.27.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sys v0.21.0 // indirect
-	golang.org/x/term v0.21.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
+	golang.org/x/term v0.24.0 // indirect
+	golang.org/x/text v0.18.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
