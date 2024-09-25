@@ -48,7 +48,7 @@ func GenerateDateFrom(from time.Time) time.Time {
 }
 
 // GenerateFlags generates an random number of message flags
-func GenerateFlags(max int) []string {
+func GenerateFlags(maxInt int) []string {
 	available := []string{
 		imap.SeenFlag,
 		imap.AnsweredFlag,
@@ -58,7 +58,7 @@ func GenerateFlags(max int) []string {
 		imap.RecentFlag,
 	}
 	picked := make([]bool, len(available))
-	count := seededRand.Intn(max)
+	count := seededRand.Intn(maxInt)
 	flags := make([]string, count)
 	for i := 0; i < count; i++ {
 		for {

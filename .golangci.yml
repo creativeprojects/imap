@@ -1,0 +1,28 @@
+linters:
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - errname
+    - gocheckcompilerdirectives
+    - gosec
+    # - maintidx
+    - misspell
+    - nilnil
+    - noctx
+    - nolintlint
+    - predeclared
+    - reassign
+    - sloglint
+    - spancheck
+    - unconvert
+    - unparam
+    - usestdlibvars
+
+linters-settings:
+  gosec:
+    excludes:
+      - G404 # Use of weak random number generator (math/rand instead of crypto/rand)
+      - G115 # integer overflow conversion

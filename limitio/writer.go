@@ -8,9 +8,8 @@ import (
 )
 
 type Writer struct {
-	w           io.Writer
-	limiter     *rate.Limiter
-	limitReader io.Reader
+	w       io.Writer
+	limiter *rate.Limiter
 }
 
 // NewWriter returns a writer that implements io.Writer with rate limiting.

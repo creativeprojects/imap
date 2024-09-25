@@ -141,24 +141,20 @@ func (m *Maildir) SelectMailbox(info mailbox.Info) (*mailbox.Status, error) {
 func (m *Maildir) PutMessage(info mailbox.Info, props mailbox.MessageProperties, body io.Reader) (mailbox.MessageID, error) {
 	name := lib.VerifyDelimiter(info.Name, info.Delimiter, Delimiter)
 	mbox := maildir.Dir(filepath.Join(m.root, name))
-	key, copied, err := m.createFromStream(mbox, props.Flags, body)
+	msg, copied, err := m.createFromStream(mbox, props.Flags, body)
 	if err != nil {
 		return mailbox.EmptyMessageID, err
 	}
 	if props.Size > 0 && copied != int64(props.Size) {
 		// delete the message
-		filename, err := mbox.Filename(key)
-		if err == nil {
-			_ = os.Remove(filename)
-		}
+		filename := msg.Filename()
+		_ = os.Remove(filename)
 		return mailbox.EmptyMessageID, fmt.Errorf("message body size advertised as %d bytes but read %d bytes from buffer", props.Size, copied)
 	}
-	m.log.Printf("Message saved: mailbox=%q key=%q size=%d flags=%v date=%q", name, key, copied, props.Flags, props.InternalDate)
+	m.log.Printf("Message saved: mailbox=%q key=%q size=%d flags=%v date=%q", name, msg, copied, props.Flags, props.InternalDate)
 
-	filename, err := mbox.Filename(key)
-	if err == nil {
-		_ = os.Chtimes(filename, time.Now(), props.InternalDate)
-	}
+	filename := msg.Filename()
+	_ = os.Chtimes(filename, time.Now(), props.InternalDate)
 
 	status, err := m.getMailboxStatus(name)
 	if err != nil {
@@ -169,20 +165,20 @@ func (m *Maildir) PutMessage(info mailbox.Info, props mailbox.MessageProperties,
 	if err != nil {
 		return mailbox.EmptyMessageID, err
 	}
-	return mailbox.NewMessageIDFromString(key), nil
+	return mailbox.NewMessageIDFromString(msg.Key()), nil
 }
 
-func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Reader) (string, int64, error) {
-	key, writer, err := mbox.Create(toFlags(flags))
+func (m *Maildir) createFromStream(mbox maildir.Dir, flags []string, body io.Reader) (*maildir.Message, int64, error) {
+	msg, writer, err := mbox.Create(toFlags(flags))
 	if err != nil {
-		return key, 0, err
+		return msg, 0, err
 	}
 	defer writer.Close()
 	copied, err := io.Copy(writer, body)
 	if err != nil {
-		return key, copied, err
+		return msg, copied, err
 	}
-	return key, copied, nil
+	return msg, copied, nil
 }
 
 func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages chan *mailbox.Message) error {
@@ -197,23 +193,17 @@ func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages c
 
 	name := m.selected
 	mbox := maildir.Dir(filepath.Join(m.root, name))
-	keys, err := mbox.Keys()
+	msgs, err := mbox.Messages()
 	if err != nil {
 		return err
 	}
 
-	for _, key := range keys {
+	for _, msg := range msgs {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		flags, err := mbox.Flags(key)
-		if err != nil {
-			return fmt.Errorf("cannot read flags for key %q: %w", key, err)
-		}
-		filename, err := mbox.Filename(key)
-		if err != nil {
-			return fmt.Errorf("cannot find filename for key %q: %w", key, err)
-		}
+		flags := msg.Flags()
+		filename := msg.Filename()
 		info, err := os.Stat(filename)
 		if err != nil {
 			return fmt.Errorf("cannot stat %q: %w", filename, err)
@@ -222,9 +212,9 @@ func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages c
 			// skip this message
 			continue
 		}
-		file, err := mbox.Open(key)
+		file, err := msg.Open()
 		if err != nil {
-			return fmt.Errorf("cannot open key %q: %w", key, err)
+			return fmt.Errorf("cannot open key %q: %w", msg, err)
 		}
 		messages <- &mailbox.Message{
 			MessageProperties: mailbox.MessageProperties{
@@ -232,7 +222,7 @@ func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages c
 				InternalDate: info.ModTime(),
 				Size:         uint32(info.Size()),
 			},
-			Uid:  mailbox.NewMessageIDFromString(key),
+			Uid:  mailbox.NewMessageIDFromString(msg.Key()),
 			Body: file,
 		}
 	}
@@ -248,20 +238,16 @@ func (m *Maildir) LatestDate(ctx context.Context) (time.Time, error) {
 	}
 
 	mbox := maildir.Dir(filepath.Join(m.root, m.selected))
-	keys, err := mbox.Keys()
+	msgs, err := mbox.Messages()
 	if err != nil {
 		return latest, err
 	}
 
-	for _, key := range keys {
+	for _, msg := range msgs {
 		if ctx.Err() != nil {
 			return latest, ctx.Err()
 		}
-		filename, err := mbox.Filename(key)
-		if err != nil {
-			// should we keep going after an error?
-			return latest, fmt.Errorf("cannot find filename for key %q: %w", key, err)
-		}
+		filename := msg.Filename()
 		info, err := os.Stat(filename)
 		if err != nil {
 			// should we keep going after an error?
