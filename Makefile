@@ -50,7 +50,8 @@ install: download
 
 dovecot:
 	@echo "[*] $@"
-	docker run -d --rm -p 143:143 -p 993:993 dovecot/dovecot:latest
+	cd dovecot && docker build -t dovecot:latest .
+	docker run -d --rm -p 993:993 -p 143:143 dovecot
 
 $(GOBIN)/eget:
 	@echo "[*] $@"
