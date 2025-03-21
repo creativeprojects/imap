@@ -41,17 +41,15 @@ builds:
 
 archives:
   - id: targz
-    builds:
-    - imap_targz
-    format: tar.gz
+    ids: ["imap_targz"]
+    formats: ["tar.gz"]
 
   - id: zip
-    builds:
-    - imap_zip
-    format: zip
-    
+    ids: ["imap_zip"]
+    formats: ["zip"]
+
 checksum:
-  name_template: 'checksums.txt'
+  name_template: "checksums.txt"
 
 snapshot:
   version_template: "{{ .Tag }}-next"
@@ -60,15 +58,15 @@ changelog:
   sort: asc
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
+      - "^docs:"
+      - "^test:"
 
 dockers:
   - image_templates:
-    - "creativeprojects/imap:latest-amd64"
-    - "creativeprojects/imap:{{ .RawVersion }}-amd64"
+      - "creativeprojects/imap:latest-amd64"
+      - "creativeprojects/imap:{{ .RawVersion }}-amd64"
     ids:
-    - imap_targz
+      - imap_targz
     use: buildx
     goos: linux
     goarch: amd64
@@ -82,10 +80,10 @@ dockers:
       - "--platform=linux/amd64"
       - "--build-arg=ARCH=amd64"
   - image_templates:
-    - "creativeprojects/imap:latest-arm64v8"
-    - "creativeprojects/imap:{{ .RawVersion }}-arm64v8"
+      - "creativeprojects/imap:latest-arm64v8"
+      - "creativeprojects/imap:{{ .RawVersion }}-arm64v8"
     ids:
-    - imap_targz
+      - imap_targz
     use: buildx
     goos: linux
     goarch: arm64
@@ -102,16 +100,15 @@ dockers:
 docker_manifests:
   - name_template: creativeprojects/imap:{{ .RawVersion }}
     image_templates:
-    - creativeprojects/imap:{{ .RawVersion }}-amd64
-    - creativeprojects/imap:{{ .RawVersion }}-arm64v8
+      - creativeprojects/imap:{{ .RawVersion }}-amd64
+      - creativeprojects/imap:{{ .RawVersion }}-arm64v8
   - name_template: creativeprojects/imap:latest
     image_templates:
-    - creativeprojects/imap:latest-amd64
-    - creativeprojects/imap:latest-arm64v8
+      - creativeprojects/imap:latest-amd64
+      - creativeprojects/imap:latest-arm64v8
 
 brews:
-  - 
-    name: imap
+  - name: imap
     ids:
       - targz
     goarm: "6"

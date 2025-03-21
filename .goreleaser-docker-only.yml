@@ -14,9 +14,8 @@ builds:
 
 archives:
   - id: targz
-    builds:
-      - imap_targz
-    format: tar.gz
+    ids: ["imap_targz"]
+    formats: ["tar.gz"]
 
 dockers:
   - image_templates:
