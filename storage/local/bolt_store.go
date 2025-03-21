@@ -15,6 +15,7 @@ import (
 	"github.com/creativeprojects/imap/lib"
 	"github.com/creativeprojects/imap/mailbox"
 	bolt "go.etcd.io/bbolt"
+	bolterrors "go.etcd.io/bbolt/errors"
 )
 
 const (
@@ -120,7 +121,7 @@ func (s *BoltStore) CreateMailbox(info mailbox.Info) error {
 
 	bucket, err := root.CreateBucket([]byte(info.Name))
 	if err != nil {
-		if errors.Is(err, bolt.ErrBucketExists) {
+		if errors.Is(err, bolterrors.ErrBucketExists) {
 			// don't return an error when the bucket exists
 			return nil
 		}

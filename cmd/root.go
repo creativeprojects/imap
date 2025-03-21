@@ -46,7 +46,7 @@ func initLog() {
 func Execute(buildVersion, buildCommit, buildDate, buildBy string) {
 	term.Infof("IMAP tools version %s built by %s (%s)", buildVersion, buildBy, buildDate)
 
-	setApp(buildVersion, buildCommit, buildDate, buildBy)
+	appVersion = buildVersion // used by self-update
 
 	if err := rootCmd.Execute(); err != nil {
 		term.Error(err)

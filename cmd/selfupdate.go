@@ -21,20 +21,10 @@ var selfUpdateCmd = &cobra.Command{
 
 var (
 	appVersion = ""
-	appCommit  = ""
-	appDate    = ""
-	appBuiltBy = ""
 )
 
 func init() {
 	rootCmd.AddCommand(selfUpdateCmd)
-}
-
-func setApp(version, commit, date, builtBy string) {
-	appVersion = version
-	appCommit = commit
-	appDate = date
-	appBuiltBy = builtBy
 }
 
 func runSelfUpdate(cmd *cobra.Command, args []string) error {

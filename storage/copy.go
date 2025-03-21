@@ -2,10 +2,15 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/creativeprojects/imap/mailbox"
 	"github.com/creativeprojects/imap/term"
+)
+
+var (
+	ErrMessageAlreadyCopied = errors.New("message already copied")
 )
 
 func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox mailbox.Info, pbar Progresser, history *mailbox.History) ([]mailbox.HistoryEntry, error) {
@@ -47,12 +52,13 @@ func CopyMessages(ctx context.Context, backendSource, backendDest Backend, mbox 
 	return entries, nil
 }
 
+// copyMessage returns ErrMessageAlreadyCopied when the message is skipped
 func copyMessage(_ context.Context, msgSource *mailbox.Message, backendDest Backend, mboxDest mailbox.Info, history *mailbox.History) (*mailbox.MessageID, error) {
 	defer msgSource.Body.Close()
 
 	if previousEntry := mailbox.FindHistoryEntryFromSourceID(history, msgSource.Uid); previousEntry != nil {
 		// message ID already copied
-		return nil, nil
+		return nil, ErrMessageAlreadyCopied
 	}
 	props := mailbox.MessageProperties{
 		Flags:        msgSource.Flags,
