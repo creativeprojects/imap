@@ -1,9 +1,9 @@
 module github.com/creativeprojects/imap
 
-go 1.24.1
+go 1.24.2
 
 require (
-	github.com/creativeprojects/go-selfupdate v1.4.1
+	github.com/creativeprojects/go-selfupdate v1.5.0
 	github.com/emersion/go-imap v1.2.1
 	github.com/emersion/go-imap-compress v0.0.0-20201103190257-14809af1d1b9
 	github.com/emersion/go-imap-uidplus v0.0.0-20200503180755-e75854c361e9
@@ -12,7 +12,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	go.etcd.io/bbolt v1.4.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.39.0
 	golang.org/x/time v0.11.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -21,8 +21,8 @@ require (
 	atomicgo.dev/cursor v0.2.0 // indirect
 	atomicgo.dev/keyboard v0.2.9 // indirect
 	atomicgo.dev/schedule v0.1.0 // indirect
-	code.gitea.io/sdk/gitea v0.20.0 // indirect
-	github.com/42wim/httpsig v1.2.1 // indirect
+	code.gitea.io/sdk/gitea v0.21.0 // indirect
+	github.com/42wim/httpsig v1.2.3 // indirect
 	github.com/Masterminds/semver/v3 v3.3.1 // indirect
 	github.com/containerd/console v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -46,10 +46,10 @@ require (
 	github.com/ulikunitz/xz v0.5.12 // indirect
 	github.com/xanzy/go-gitlab v0.115.0 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/term v0.30.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/oauth2 v0.29.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/term v0.31.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
