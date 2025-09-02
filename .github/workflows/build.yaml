@@ -13,13 +13,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_version: ['1.24']
+        go_version: ['1.25']
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
 
     - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Set up Go ${{ matrix.go_version }}
       uses: actions/setup-go@v5
@@ -38,10 +38,10 @@ jobs:
       shell: bash
 
     - name: Code coverage
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v5
       with:
         env_vars: OS,GO
-        file: ./coverage.out
+        files: ./coverage.out
         flags: unittests
         fail_ci_if_error: false
         verbose: true
