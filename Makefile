@@ -59,7 +59,7 @@ $(GOBIN)/eget:
 
 $(GOBIN)/goreleaser: $(GOBIN)/eget
 	@echo "[*] $@"
-	eget goreleaser/goreleaser --to $(GOBIN)
+	eget goreleaser/goreleaser --asset="tar.gz" --upgrade-only --to $(GOBIN)
 
 nightly: $(GOBIN)/goreleaser
 	@echo "[*] $@"
