@@ -17,33 +17,47 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v5
+      - name: Set up Go ${{ matrix.go_version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go_version }}
 
-    - name: Set up Go ${{ matrix.go_version }}
-      uses: actions/setup-go@v5
-      with:
-        go-version: ${{ matrix.go_version }}
+      - name: Get dependencies
+        run: |
+          go mod download
 
-    - name: Get dependencies
-      run: |
-        go mod download
+      - name: Build
+        run: go build -v ./...
 
-    - name: Build
-      run: go build -v ./...
+      - name: Test
+        run: "go test -v -short -race -coverprofile='coverage.out' ./..."
+        shell: bash
 
-    - name: Test
-      run: "go test -v -short -race -coverprofile='coverage.out' ./..."
-      shell: bash
+      - name: Code coverage
+        uses: codecov/codecov-action@v5
+        with:
+          env_vars: OS,GO
+          files: ./coverage.out
+          flags: unittests
+          fail_ci_if_error: false
+          verbose: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
 
-    - name: Code coverage
-      uses: codecov/codecov-action@v5
-      with:
-        env_vars: OS,GO
-        files: ./coverage.out
-        flags: unittests
-        fail_ci_if_error: false
-        verbose: true
-        token: ${{ secrets.CODECOV_TOKEN }}
-      continue-on-error: true
+  goreleaser:
+    name: Check GoReleaser configurations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
+
+      - name: Check GoReleaser configurations
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: check .goreleaser-docker-only.yml .goreleaser.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
