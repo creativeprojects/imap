@@ -52,6 +52,6 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: '~> v2'
-          args: release check .goreleaser-docker-only.yml .goreleaser.yml
+          args: check .goreleaser-docker-only.yml .goreleaser.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
