@@ -17,7 +17,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-
       - name: Check out code into the Go module directory
         uses: actions/checkout@v5
 
@@ -47,6 +46,13 @@ jobs:
           verbose: true
           token: ${{ secrets.CODECOV_TOKEN }}
         continue-on-error: true
+
+  goreleaser:
+    name: Check GoReleaser configurations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v5
 
       - name: Check GoReleaser configurations
         uses: goreleaser/goreleaser-action@v6
