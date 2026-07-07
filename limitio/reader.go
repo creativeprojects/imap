@@ -42,10 +42,7 @@ func (s *Reader) Read(p []byte) (int, error) {
 	// then wait for the tokens to allow the time needed for reading it all
 	left := n - s.limiter.Burst() // remove first burst
 	for left > 0 {
-		singleRead := left
-		if singleRead > s.limiter.Burst() {
-			singleRead = s.limiter.Burst()
-		}
+		singleRead := min(left, s.limiter.Burst())
 		err = s.limiter.WaitN(context.Background(), singleRead)
 		if err != nil {
 			return n, err

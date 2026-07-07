@@ -32,11 +32,9 @@ func TestImapBackend(t *testing.T) {
 
 	t.Logf("Starting IMAP server at %s", listener.Addr().String())
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_ = server.Serve(listener)
-	}()
+	})
 
 	time.Sleep(100 * time.Millisecond)
 

@@ -60,7 +60,7 @@ func GenerateFlags(maxInt int) []string {
 	picked := make([]bool, len(available))
 	count := seededRand.Intn(maxInt)
 	flags := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		for {
 			item := seededRand.Intn(len(available))
 			if !picked[item] {

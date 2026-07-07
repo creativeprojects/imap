@@ -238,7 +238,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 			Delimiter: backend.Delimiter(),
 			Name:      "Work",
 		}
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			props := mailbox.MessageProperties{
 				Flags:        sampleMessageFlags,
 				InternalDate: sampleMessageDate,
@@ -279,9 +279,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		}()
 
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			count := 0
 			for msg := range receiver {
 				count++
@@ -302,7 +300,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 				t.Logf("Received message uid=%s size=%d flags=%+v", msg.Uid.String(), read, msg.Flags)
 			}
 			assert.Equal(t, 3, count)
-		}()
+		})
 		// wait until all the messages arrived
 		err = <-done
 		assert.NoError(t, err)
@@ -405,9 +403,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 		}()
 
 		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			count := 0
 			for msg := range receiver {
 				count++
@@ -415,7 +411,7 @@ func RunTestsOnBackend(t *testing.T, backend storage.Backend) {
 			}
 			// only 1 message should have been downloaded
 			assert.Equal(t, 1, count)
-		}()
+		})
 		// wait until all the messages arrived
 		err = <-done
 		assert.NoError(t, err)

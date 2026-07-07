@@ -268,9 +268,7 @@ func (i *Imap) FetchMessages(ctx context.Context, since time.Time, messages chan
 	}()
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for msg := range receiver {
 			i.log.Printf("Received IMAP message seq=%d flags=%+v date=%q", msg.SeqNum, msg.Flags, msg.InternalDate)
 			// receive all the messages as they get in
@@ -286,7 +284,7 @@ func (i *Imap) FetchMessages(ctx context.Context, since time.Time, messages chan
 			// and transfer them to the output
 			messages <- message
 		}
-	}()
+	})
 	// will return the error from Fetch when it's finished
 	err := <-done
 	wg.Wait()

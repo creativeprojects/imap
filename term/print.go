@@ -18,52 +18,52 @@ func SetLevel(level Level) {
 	lvl = level
 }
 
-func Debug(a ...interface{}) {
+func Debug(a ...any) {
 	if lvl > LevelDebug {
 		return
 	}
 	pterm.FgLightCyan.Println(a...)
 }
 
-func Debugf(format string, a ...interface{}) {
+func Debugf(format string, a ...any) {
 	if lvl > LevelDebug {
 		return
 	}
 	pterm.FgLightCyan.Printfln(format, a...)
 }
 
-func Info(a ...interface{}) {
+func Info(a ...any) {
 	if lvl > LevelInfo {
 		return
 	}
 	pterm.FgLightGreen.Println(a...)
 }
 
-func Infof(format string, a ...interface{}) {
+func Infof(format string, a ...any) {
 	if lvl > LevelInfo {
 		return
 	}
 	pterm.FgLightGreen.Printfln(format, a...)
 }
 
-func Warn(a ...interface{}) {
+func Warn(a ...any) {
 	if lvl > LevelWarn {
 		return
 	}
 	pterm.FgYellow.Println(a...)
 }
 
-func Warnf(format string, a ...interface{}) {
+func Warnf(format string, a ...any) {
 	if lvl > LevelWarn {
 		return
 	}
 	pterm.FgYellow.Printfln(format, a...)
 }
 
-func Error(a ...interface{}) {
+func Error(a ...any) {
 	pterm.FgLightRed.Println(a...)
 }
 
-func Errorf(format string, a ...interface{}) {
+func Errorf(format string, a ...any) {
 	pterm.FgLightRed.Printfln(format, a...)
 }
