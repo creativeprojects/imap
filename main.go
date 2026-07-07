@@ -4,7 +4,7 @@ import (
 	"github.com/creativeprojects/imap/cmd"
 )
 
-// These fields are populated by the goreleaser build
+// These fields are populated by the build
 var (
 	version = "0.4.0-dev"
 	commit  = "---"

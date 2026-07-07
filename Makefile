@@ -57,14 +57,6 @@ $(GOBIN)/eget:
 	@echo "[*] $@"
 	go install -v github.com/zyedidia/eget@latest
 
-$(GOBIN)/goreleaser: $(GOBIN)/eget
-	@echo "[*] $@"
-	eget goreleaser/goreleaser --asset="tar.gz" --upgrade-only --to $(GOBIN)
-
-nightly: $(GOBIN)/goreleaser
-	@echo "[*] $@"
-	GITLAB_TOKEN= goreleaser --snapshot --skip=publish --clean
-
 generate-install:
 	@echo "[*] $@"
 	godownloader .godownloader.yml -r creativeprojects/imap -o install.sh
