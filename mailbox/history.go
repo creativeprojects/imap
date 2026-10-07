@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"time"
 )
@@ -109,15 +110,15 @@ func FindLatestInternalDateFromHistory(sourceAccountTag string, history *History
 		return zero
 	}
 	// we believe actions are in order
-	for actionID := len(history.Actions) - 1; actionID >= 0; actionID-- {
-		action := history.Actions[actionID]
+	for _, action := range slices.Backward(history.Actions) {
+
 		if sourceAccountTag != "" && sourceAccountTag != action.SourceAccountTag {
 			continue
 		}
 		// we also believe messages are in order
-		for entryID := len(action.Entries) - 1; entryID >= 0; entryID-- {
-			if action.Entries[entryID].SourceInternalDate.After(zero) {
-				return action.Entries[entryID].SourceInternalDate
+		for _, v := range slices.Backward(action.Entries) {
+			if v.SourceInternalDate.After(zero) {
+				return v.SourceInternalDate
 			}
 		}
 	}

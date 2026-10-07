@@ -354,14 +354,12 @@ func (s *BoltStore) FetchMessages(ctx context.Context, since time.Time, messages
 
 func channelMessage(uid mailbox.MessageID, properties *msgProps, body io.ReadCloser, to chan *mailbox.Message) {
 	to <- &mailbox.Message{
-		MessageProperties: mailbox.MessageProperties{
-			Flags:        properties.Flags,
-			Size:         properties.Size,
-			Hash:         properties.Hash,
-			InternalDate: properties.Date,
-		},
-		Uid:  uid,
-		Body: body,
+		Flags:        properties.Flags,
+		Size:         properties.Size,
+		Hash:         properties.Hash,
+		InternalDate: properties.Date,
+		Uid:          uid,
+		Body:         body,
 	}
 }
 

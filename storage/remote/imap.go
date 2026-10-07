@@ -273,13 +273,11 @@ func (i *Imap) FetchMessages(ctx context.Context, since time.Time, messages chan
 			i.log.Printf("Received IMAP message seq=%d flags=%+v date=%q", msg.SeqNum, msg.Flags, msg.InternalDate)
 			// receive all the messages as they get in
 			message := &mailbox.Message{
-				MessageProperties: mailbox.MessageProperties{
-					Flags:        lib.StripRecentFlag(msg.Flags),
-					InternalDate: msg.InternalDate,
-					Size:         msg.Size,
-				},
-				Uid:  mailbox.NewMessageIDFromUint(msg.Uid),
-				Body: io.NopCloser(msg.GetBody(section)),
+				Flags:        lib.StripRecentFlag(msg.Flags),
+				InternalDate: msg.InternalDate,
+				Size:         msg.Size,
+				Uid:          mailbox.NewMessageIDFromUint(msg.Uid),
+				Body:         io.NopCloser(msg.GetBody(section)),
 			}
 			// and transfer them to the output
 			messages <- message

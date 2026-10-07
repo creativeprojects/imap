@@ -217,13 +217,11 @@ func (m *Maildir) FetchMessages(ctx context.Context, since time.Time, messages c
 			return fmt.Errorf("cannot open key %q: %w", msg, err)
 		}
 		messages <- &mailbox.Message{
-			MessageProperties: mailbox.MessageProperties{
-				Flags:        flagsToStrings(flags),
-				InternalDate: info.ModTime(),
-				Size:         uint32(info.Size()),
-			},
-			Uid:  mailbox.NewMessageIDFromString(msg.Key()),
-			Body: file,
+			Flags:        flagsToStrings(flags),
+			InternalDate: info.ModTime(),
+			Size:         uint32(info.Size()),
+			Uid:          mailbox.NewMessageIDFromString(msg.Key()),
+			Body:         file,
 		}
 	}
 	return nil

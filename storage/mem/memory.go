@@ -159,14 +159,12 @@ func (m *Backend) FetchMessages(ctx context.Context, since time.Time, messages c
 		limitReader.SetRateLimit(1024*1024, 1024) // limit 1MiB/s
 
 		messages <- &mailbox.Message{
-			MessageProperties: mailbox.MessageProperties{
-				Flags:        msg.flags,
-				InternalDate: msg.date,
-				Size:         uint32(len(msg.content)),
-				Hash:         msg.hash,
-			},
-			Uid:  mailbox.NewMessageIDFromUint(uid),
-			Body: io.NopCloser(limitReader),
+			Flags:        msg.flags,
+			InternalDate: msg.date,
+			Size:         uint32(len(msg.content)),
+			Hash:         msg.hash,
+			Uid:          mailbox.NewMessageIDFromUint(uid),
+			Body:         io.NopCloser(limitReader),
 		}
 	}
 

@@ -51,7 +51,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		{"Mailbox", "Messages"},
 	})
 	for _, mailbox := range mailboxes {
-		var messages string
+		messages := "?"
 		status, err := backend.SelectMailbox(mailbox)
 		if err == nil {
 			messages = strconv.FormatUint(uint64(status.Messages), 10)
