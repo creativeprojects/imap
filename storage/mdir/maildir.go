@@ -306,6 +306,14 @@ func (m *Maildir) historyFile(name string) string {
 	return filepath.Join(m.root, name+".history.json")
 }
 
+func (m *Maildir) hasMailboxStatus(name string) bool {
+	stat, err := os.Stat(m.statusFile(name))
+	if errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return !stat.IsDir()
+}
+
 func (m *Maildir) setMailboxStatus(name string, status mailbox.Status) error {
 	file, err := os.Create(m.statusFile(name))
 	if err != nil {
@@ -323,6 +331,17 @@ func (m *Maildir) setMailboxStatus(name string, status mailbox.Status) error {
 }
 
 func (m *Maildir) getMailboxStatus(name string) (*mailbox.Status, error) {
+	if !m.hasMailboxStatus(name) {
+		status, err := m.scanMailboxStatus(name)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
+		}
+		err = m.setMailboxStatus(name, *status)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
+		}
+		return status, nil
+	}
 	file, err := os.Open(m.statusFile(name))
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
@@ -336,6 +355,24 @@ func (m *Maildir) getMailboxStatus(name string) (*mailbox.Status, error) {
 		return nil, fmt.Errorf("%w: %s", lib.ErrStatusNotFound, err)
 	}
 
+	return status, nil
+}
+
+// scanMailboxStatus recreates the mailbox status by scanning the mailbox directory for messages.
+func (m *Maildir) scanMailboxStatus(name string) (*mailbox.Status, error) {
+	mbox := maildir.Dir(filepath.Join(m.root, name))
+	msgs, err := mbox.Messages()
+	if err != nil {
+		return nil, err
+	}
+	unseen, _ := mbox.UnseenCount()
+
+	status := &mailbox.Status{
+		Name:        name,
+		Messages:    uint32(len(msgs)),
+		Unseen:      uint32(unseen),
+		UidValidity: lib.NewUID(),
+	}
 	return status, nil
 }
 
