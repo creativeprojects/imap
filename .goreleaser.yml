@@ -1,0 +1,88 @@
+version: 2
+
+project_name: imap
+
+builds:
+  - id: imap_targz
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - freebsd
+      - linux
+      - windows
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+      - goos: windows
+        goarch: arm
+      - goos: windows
+        goarch: arm64
+
+  - id: imap_zip
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - windows
+    goarch:
+      - "386"
+      - amd64
+
+archives:
+  - id: targz
+    ids: ["imap_targz"]
+    formats: ["tar.gz"]
+
+  - id: zip
+    ids: ["imap_zip"]
+    formats: ["zip"]
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+dockers_v2:
+  - images:
+      - "creativeprojects/imap"
+      - "ghcr.io/creativeprojects/imap"
+    dockerfile: build/Dockerfile
+    ids:
+      - imap_targz
+    tags:
+      - "{{ .RawVersion }}"
+      - "{{ if .IsNightly }}nightly{{ end }}"
+      - "{{ if not .IsNightly }}latest{{ end }}"
+    labels:
+      "org.opencontainers.image.description": "IMAP tools: backup, copy, move your emails between servers and locally"
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.title": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
+release:
+  draft: true
