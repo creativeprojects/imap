@@ -1,4 +1,4 @@
-FROM alpine:3.13
+FROM alpine:3.21
 
 RUN apk add dovecot
 RUN addgroup -g 1000 vmail && \
