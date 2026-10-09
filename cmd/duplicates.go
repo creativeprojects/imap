@@ -84,11 +84,12 @@ func runDuplicates(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("total of %d unique messages\n", len(hashes))
-	if duplicates == 0 {
+	switch duplicates {
+	case 0:
 		fmt.Print("no duplicate message\n")
-	} else if duplicates == 1 {
+	case 1:
 		fmt.Print("found 1 duplicate message\n")
-	} else {
+	default:
 		fmt.Printf("found %d duplicate messages\n", duplicates)
 	}
 	return nil

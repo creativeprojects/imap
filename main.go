@@ -6,7 +6,7 @@ import (
 
 // These fields are populated by the build
 var (
-	version = "0.4.0-dev"
+	version = "0.5.0-dev"
 	commit  = "---"
 	date    = "today"
 	builtBy = "dev"
